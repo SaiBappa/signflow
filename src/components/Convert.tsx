@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import JSZip from 'jszip';
 import { downloadBlob } from '../utils';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
 export function Convert() {
   const [files, setFiles] = useState<File[]>([]);
@@ -59,7 +62,7 @@ export function Convert() {
     try {
       const file = files[0];
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
       
       const zip = new JSZip();
       

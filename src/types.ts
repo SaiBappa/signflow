@@ -34,6 +34,7 @@ export interface SignatureState {
   url: string;
   originalUrl: string;
   bgRemovalTolerance: number;
+  bgRemovalMode?: 'white' | 'black' | 'auto';
   tintColor?: string;
   pos: Coordinates;
   applyMode: 'single' | 'all' | 'custom';

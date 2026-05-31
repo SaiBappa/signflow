@@ -23,7 +23,8 @@ export function fontCss(value?: string): string {
 export function removeImageBackground(
   imageUrl: string,
   tolerance: number,
-  tintColor?: string // hex color like "#000000"
+  tintColor?: string, // hex color like "#000000"
+  bgRemovalMode: 'white' | 'black' | 'auto' = 'white'
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -52,18 +53,53 @@ export function removeImageBackground(
         }
       }
       
+      // Determine the background color to remove
+      let bgR = 255;
+      let bgG = 255;
+      let bgB = 255;
+      
+      if (bgRemovalMode === 'black') {
+        bgR = 0;
+        bgG = 0;
+        bgB = 0;
+      } else if (bgRemovalMode === 'auto') {
+        // Sample edge pixels (four corners)
+        const corners = [
+          [0, 0],
+          [canvas.width - 1, 0],
+          [0, canvas.height - 1],
+          [canvas.width - 1, canvas.height - 1]
+        ];
+        let sumR = 0, sumG = 0, sumB = 0;
+        let sampleCount = 0;
+        corners.forEach(([cx, cy]) => {
+          if (cx >= 0 && cx < canvas.width && cy >= 0 && cy < canvas.height) {
+            const idx = (cy * canvas.width + cx) * 4;
+            sumR += data[idx];
+            sumG += data[idx + 1];
+            sumB += data[idx + 2];
+            sampleCount++;
+          }
+        });
+        if (sampleCount > 0) {
+          bgR = Math.round(sumR / sampleCount);
+          bgG = Math.round(sumG / sampleCount);
+          bgB = Math.round(sumB / sampleCount);
+        }
+      }
+      
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
         const a = data[i + 3];
         
-        // Euclidean distance from white (255, 255, 255)
+        // Euclidean distance from the background color
         const dist = Math.sqrt(
-          Math.pow(255 - r, 2) + Math.pow(255 - g, 2) + Math.pow(255 - b, 2)
+          Math.pow(bgR - r, 2) + Math.pow(bgG - g, 2) + Math.pow(bgB - b, 2)
         );
         
-        // If color is close enough to white, make it transparent
+        // If color is close enough to background, make it transparent
         if (dist < tolerance) {
           data[i + 3] = 0; 
         } else if (targetR !== -1 && a > 0) {
@@ -71,7 +107,6 @@ export function removeImageBackground(
           // For signatures (black/dark on white), we want to preserve the alpha/anti-aliasing, 
           // and apply the target color. 
           // To keep it simple, we just set the color to the target color.
-          // Or if we want better anti-aliasing, we could compute alpha from darkness if originally white bg.
           data[i] = targetR;
           data[i + 1] = targetG;
           data[i + 2] = targetB;
