@@ -9,6 +9,8 @@ interface SidebarProps {
   onUploadSig: (file: File) => void;
   bgTolerance: number;
   setBgTolerance: (v: number) => void;
+  bgRemovalMode?: 'white' | 'black' | 'auto';
+  setBgRemovalMode: (mode: 'white' | 'black' | 'auto') => void;
   tintColor?: string;
   setTintColor: (color?: string) => void;
   applyMode: 'single' | 'all' | 'custom';
@@ -32,6 +34,8 @@ export function Sidebar({
   onUploadSig,
   bgTolerance,
   setBgTolerance,
+  bgRemovalMode = 'white',
+  setBgRemovalMode,
   tintColor,
   setTintColor,
   applyMode,
@@ -62,7 +66,7 @@ export function Sidebar({
   };
 
   return (
-    <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto z-10">
+    <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0 h-full overflow-y-auto z-10">
       <div className="p-6 space-y-8 flex-1">
         {/* Document Section */}
         <section className="space-y-4">
@@ -106,7 +110,8 @@ export function Sidebar({
               >
                 <img src={signatureUrl} className="max-h-full max-w-full mix-blend-multiply pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity" />
                 <div className="absolute inset-0 bg-indigo-50/10 opacity-0 group-hover:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
-                   <span className="text-[10px] font-semibold text-indigo-700 bg-white/90 px-2 py-1 rounded shadow-sm border border-indigo-100">Drag to Document</span>
+                   <span className="hidden md:block text-[10px] font-semibold text-indigo-700 bg-white/90 px-2 py-1 rounded shadow-sm border border-indigo-100">Drag to Document</span>
+                   <span className="md:hidden text-[10px] font-semibold text-indigo-700 bg-white/90 px-2 py-1 rounded shadow-sm border border-indigo-100">Tap to place</span>
                 </div>
               </div>
               <div className="flex flex-col gap-2">
@@ -287,21 +292,48 @@ export function Sidebar({
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Signature Settings</label>
               
               <div className="space-y-3">
-                {/* Background Remove Toggle Equivalent (Tolerance) */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-600">Remove Background</span>
-                    <span className="text-xs text-slate-500 font-mono">{bgTolerance}%</span>
+                {/* Background Remove Settings */}
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Background to Remove</span>
+                    <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl text-[10px] font-semibold">
+                      {[
+                        { id: 'white', label: 'White' },
+                        { id: 'black', label: 'Black' },
+                        { id: 'auto', label: 'Auto' },
+                      ].map(mode => (
+                        <button
+                          key={mode.id}
+                          type="button"
+                          onClick={() => setBgRemovalMode(mode.id as any)}
+                          className={cn(
+                            "py-1 rounded-lg text-center cursor-pointer transition-all",
+                            bgRemovalMode === mode.id
+                              ? "bg-white text-indigo-700 shadow-sm font-bold border border-slate-200/30"
+                              : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/30"
+                          )}
+                        >
+                          {mode.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="relative">
-                    <input
-                      type="range"
-                      min="0"
-                      max="200"
-                      value={bgTolerance}
-                      onChange={(e) => setBgTolerance(Number(e.target.value))}
-                      className="w-full accent-indigo-600 h-1 bg-slate-100 rounded-full appearance-none cursor-pointer relative z-10"
-                    />
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-slate-600">Removal Tolerance</span>
+                      <span className="text-xs text-slate-500 font-mono">{bgTolerance}%</span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="range"
+                        min="0"
+                        max="200"
+                        value={bgTolerance}
+                        onChange={(e) => setBgTolerance(Number(e.target.value))}
+                        className="w-full accent-indigo-600 h-1 bg-slate-100 rounded-full appearance-none cursor-pointer relative z-10"
+                      />
+                    </div>
                   </div>
                 </div>
 

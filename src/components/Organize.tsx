@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import { PDFDocument, degrees } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
+// @ts-ignore
+import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { downloadBlob } from '../utils';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+// Configure worker once at module level (not inside callbacks)
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
 interface PdfPageItem {
   id: string;
@@ -97,17 +102,14 @@ export function Organize() {
       const newItems: PdfPageItem[] = [];
       
       try {
-        // Ensure worker is configured for pdfjs
-        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-        }
-
         for (let i = 0; i < e.target.files.length; i++) {
           const file = e.target.files[i];
           if (file.type !== 'application/pdf') continue;
           
           const arrayBuffer = await file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          // Wrap in Uint8Array — pdfjs-dist v5 transfers the buffer to the worker
+          // thread which detaches it; a Uint8Array view ensures safe ownership.
+          const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
           const totalPages = pdf.numPages;
           
           for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
