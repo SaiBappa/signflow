@@ -4,15 +4,15 @@ import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
-import { format } from 'date-fns';
 import { Sidebar } from './components/Sidebar';
 import { DocumentViewer } from './components/DocumentViewer';
-import { DocumentFile, SignatureState, DateState, SavedAsset, TextInstance } from './types';
-import { FileImage, FileSignature, Calendar, Settings, Image as ImageIcon, PenTool } from 'lucide-react';
-import { removeImageBackground, downloadBlob, isPageInRange } from './utils';
+import { DocumentFile, SignatureState, SavedAsset, TextInstance } from './types';
+import { FileImage, FileSignature, Settings, Image as ImageIcon, PenTool } from 'lucide-react';
+import { removeImageBackground, downloadBlob, isPageInRange, TEXT_FONTS } from './utils';
 import { Organize } from './components/Organize';
 import { Compress } from './components/Compress';
 import { Convert } from './components/Convert';
+import Footer from './components/Footer';
 
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -27,13 +27,6 @@ export default function App() {
     return [];
   });
   const [signature, setSignature] = useState<SignatureState | null>(null);
-  const [dateState, setDateState] = useState<DateState>({
-    enabled: false,
-    format: 'MMMM do, yyyy',
-    pos: { x: 50, y: 50, width: 200, height: 30 },
-    value: new Date(),
-    fontSize: 16,
-  });
   const [texts, setTexts] = useState<TextInstance[]>([]);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -118,16 +111,45 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
+  const handleDeleteAsset = (id: string) => {
+    setSavedAssets(prev => {
+      const target = prev.find(a => a.id === id);
+      const updated = prev.filter(a => a.id !== id);
+      try {
+        localStorage.setItem('signflow_saved_signatures', JSON.stringify(updated));
+      } catch (e) {}
+      // If the deleted asset is the active signature, clear or switch it.
+      if (target) {
+        setSignature(curr => {
+          if (!curr || (curr.url !== target.url && curr.originalUrl !== target.originalUrl)) return curr;
+          const next = updated[updated.length - 1];
+          if (!next) return null;
+          return {
+            ...curr,
+            url: next.url,
+            originalUrl: next.originalUrl,
+            aspectRatio: next.aspectRatio,
+          };
+        });
+      }
+      return updated;
+    });
+  };
+
   const handleDownload = async () => {
     if (!documentFile || !signature) return;
     setIsExporting(true);
 
     try {
+      // Use the actual rendered page element (canvas/img), not its wrapper.
+      // The wrapper container can be larger than the page it holds, which would
+      // otherwise scale the signature/date/text placement and shift it on export.
+      const pageEl = document.getElementById('document-canvas-content');
       const container = document.getElementById('document-canvas-container');
-      if (!container) throw new Error("Could not find document container");
-      
-      const displayWidth = container.clientWidth;
-      const displayHeight = container.clientHeight;
+      if (!pageEl || !container) throw new Error("Could not find document page");
+
+      const displayWidth = pageEl.clientWidth;
+      const displayHeight = pageEl.clientHeight;
 
       if (documentFile.type === 'pdf') {
         const arrayBuffer = await documentFile.file.arrayBuffer();
@@ -151,7 +173,12 @@ export default function App() {
         }
 
         const pages = pdfDoc.getPages();
-        const helveticaFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        // Embed each selectable text font once, keyed by its TEXT_FONTS value.
+        const textFonts: Record<string, any> = {
+          Helvetica: await pdfDoc.embedFont(StandardFonts.Helvetica),
+          Times: await pdfDoc.embedFont(StandardFonts.TimesRoman),
+          Courier: await pdfDoc.embedFont(StandardFonts.Courier),
+        };
 
         // Load document into pdfjs to get exact viewports for mapping
         const pdfjsDoc = await pdfjsLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
@@ -243,31 +270,6 @@ export default function App() {
             }
           });
 
-          if (dateState.enabled) {
-            const dateStr = format(dateState.value, dateState.format);
-            const scaleX = viewport.width / displayWidth;
-            const scaleY = viewport.height / displayHeight;
-            
-            const pdfVisX = dateState.pos.x * scaleX;
-            const pdfVisY = dateState.pos.y * scaleY;
-            const pdfVisH = dateState.pos.height * scaleY;
-
-            // Calculate font size
-            const fontSize = (dateState.fontSize || 16) * scaleY; 
-
-            // Text is drawn from the baseline (bottom-left)
-            const visualBottomLeft = viewport.convertToPdfPoint(pdfVisX, pdfVisY + pdfVisH);
-            
-            page.drawText(dateStr, {
-              x: visualBottomLeft[0],
-              y: visualBottomLeft[1] + (pdfVisH * 0.15),
-              size: fontSize,
-              font: helveticaFont,
-              color: rgb(0.1, 0.1, 0.1),
-              rotate: degrees(-rotation),
-            });
-          }
-
           // Render custom texts
           texts.forEach(text => {
             if (text.pageIndex !== i + 1) return;
@@ -290,6 +292,7 @@ export default function App() {
             const b = parseInt(hex.substring(4,6), 16) / 255 || 0;
 
             const fontSize = text.fontSize * scaleY; // naive scaling
+            const textFont = textFonts[text.fontFamily || 'Helvetica'] || textFonts.Helvetica;
 
             // Approximate line wrapping for text-area (splitting by newline)
             const lines = text.text.split('\n');
@@ -303,7 +306,7 @@ export default function App() {
                 x: visualBottomLeft[0],
                 y: visualBottomLeft[1],
                 size: fontSize,
-                font: helveticaFont,
+                font: textFont,
                 color: rgb(r, g, b),
                 rotate: degrees(-rotation),
               });
@@ -385,25 +388,6 @@ export default function App() {
             ctx.restore();
           }
         });
-
-        // Draw Date
-        if (dateState.enabled) {
-          const instCanvasWidth = displayWidth;
-          const instCanvasHeight = displayHeight;
-          const normX = dateState.pos.x / instCanvasWidth;
-          const normY = dateState.pos.y / instCanvasHeight;
-          const normH = dateState.pos.height / instCanvasHeight;
-
-          const fontSize = normH * img.height * 0.7;
-          ctx.font = `bold ${fontSize}px sans-serif`;
-          ctx.fillStyle = '#1e293b';
-          // Canvas text origin is bottom-left of the text bounding box roughly
-          ctx.fillText(
-            format(dateState.value, dateState.format),
-            normX * img.width,
-            (normY * img.height) + fontSize + (fontSize * 0.2) // slight baseline adjustment
-          );
-        }
 
         canvas.toBlob((blob) => {
           if (blob) {
@@ -537,8 +521,7 @@ export default function App() {
                     instances: prev ? prev.instances : [],
                     aspectRatio: asset.aspectRatio,
                   }))}
-                  dateEnabled={dateState.enabled}
-                  setDateEnabled={(val) => setDateState(p => ({ ...p, enabled: val }))}
+                  onDeleteAsset={handleDeleteAsset}
                   onDownload={handleDownload}
                   hasDocument={!!documentFile}
                   hasSignature={!!signature}
@@ -550,6 +533,7 @@ export default function App() {
                     pos: { x: 50, y: 50, width: 200, height: 40 },
                     fontSize: 24,
                     color: '#000000',
+                    fontFamily: TEXT_FONTS[0].value,
                   }])}
                 />
                   </motion.div>
@@ -563,8 +547,6 @@ export default function App() {
                 document={documentFile}
                 signature={signature}
                 setSignature={setSignature}
-                dateState={dateState}
-                setDateState={setDateState}
                 texts={texts}
                 setTexts={setTexts}
               />
@@ -585,6 +567,8 @@ export default function App() {
         {activeTab === 'Compress' && <Compress />}
         {activeTab === 'Convert' && <Convert />}
       </div>
+
+      <Footer />
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden shrink-0 w-full bg-white/90 backdrop-blur-xl border-t border-slate-100 flex items-center justify-around z-30 px-2 pb-safe pt-2 min-h-[4.5rem] shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.05)]">

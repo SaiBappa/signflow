@@ -43,14 +43,6 @@ export interface SignatureState {
   aspectRatio: number;
 }
 
-export interface DateState {
-  enabled: boolean;
-  format: string;
-  pos: Coordinates;
-  value: Date;
-  fontSize: number;
-}
-
 export interface TextInstance {
   id: string;
   text: string;
@@ -58,6 +50,7 @@ export interface TextInstance {
   pos: Coordinates;
   fontSize: number;
   color: string;
+  fontFamily?: string;
   canvasWidth?: number;
   canvasHeight?: number;
 }

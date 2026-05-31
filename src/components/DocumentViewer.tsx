@@ -1,17 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Rnd } from 'react-rnd';
-import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, RotateCw } from 'lucide-react';
-import { DocumentFile, SignatureState, DateState, TextInstance } from '../types';
+import { ChevronLeft, ChevronRight, RotateCw, ShieldCheck } from 'lucide-react';
+import { DocumentFile, SignatureState, TextInstance } from '../types';
 import { usePdf } from '../hooks/usePdf';
-import { cn, isPageInRange } from '../utils';
+import { cn, isPageInRange, fontCss, TEXT_FONTS } from '../utils';
 
 interface DocumentViewerProps {
   document: DocumentFile | null;
   signature: SignatureState | null;
   setSignature: React.Dispatch<React.SetStateAction<SignatureState | null>>;
-  dateState: DateState;
-  setDateState: React.Dispatch<React.SetStateAction<DateState>>;
   texts: TextInstance[];
   setTexts: React.Dispatch<React.SetStateAction<TextInstance[]>>;
 }
@@ -20,8 +17,6 @@ export function DocumentViewer({
   document,
   signature,
   setSignature,
-  dateState,
-  setDateState,
   texts,
   setTexts,
 }: DocumentViewerProps) {
@@ -98,6 +93,10 @@ export function DocumentViewer({
           </div>
           <h3 className="text-xl font-bold text-slate-800 tracking-tight">Ready to Flow</h3>
           <p className="text-sm text-slate-500 mt-2 font-medium">Upload a PDF or Image from the sidebar to begin signing.</p>
+          <div className="mt-6 inline-flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-full px-3.5 py-1.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" strokeWidth={2.2} />
+            <span className="text-[11px] font-medium text-emerald-800">100% private — files never leave your device</span>
+          </div>
         </div>
       </div>
     );
@@ -149,8 +148,12 @@ export function DocumentViewer({
             const rect = e.currentTarget.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-            const canvasWidth = e.currentTarget.clientWidth;
-            const canvasHeight = e.currentTarget.clientHeight;
+            // Measure against the actual rendered page (canvas/img), NOT the
+            // container. The container can be taller/wider than the page it
+            // wraps, and using its size here would shift the signature on export.
+            const pageEl = e.currentTarget.querySelector('#document-canvas-content') as HTMLElement | null;
+            const canvasWidth = pageEl?.clientWidth || e.currentTarget.clientWidth;
+            const canvasHeight = pageEl?.clientHeight || e.currentTarget.clientHeight;
 
             if (textType) {
               setTexts(prev => [...prev, {
@@ -160,6 +163,7 @@ export function DocumentViewer({
                 pos: { x, y, width: 200, height: 40 },
                 fontSize: 24,
                 color: '#000000',
+                fontFamily: TEXT_FONTS[0].value,
                 canvasWidth,
                 canvasHeight
               }]);
@@ -243,7 +247,7 @@ export function DocumentViewer({
               position={{ x: instance.pos.x, y: instance.pos.y }}
               lockAspectRatio={true}
               onDragStop={(e, d) => {
-                const container = window.document.getElementById('document-canvas-container');
+                const pageEl = window.document.getElementById('document-canvas-content');
                 setSignature(prev => {
                   if (!prev) return prev;
                   return {
@@ -252,15 +256,15 @@ export function DocumentViewer({
                       inst.id === instance.id ? { 
                         ...inst, 
                         pos: { ...inst.pos, x: d.x, y: d.y },
-                        canvasWidth: container?.clientWidth,
-                        canvasHeight: container?.clientHeight
+                        canvasWidth: pageEl?.clientWidth,
+                        canvasHeight: pageEl?.clientHeight
                       } : inst
                     )
                   };
                 });
               }}
               onResizeStop={(e, direction, ref, delta, position) => {
-                const container = window.document.getElementById('document-canvas-container');
+                const pageEl = window.document.getElementById('document-canvas-content');
                 setSignature(prev => {
                   if (!prev) return prev;
                   return {
@@ -274,8 +278,8 @@ export function DocumentViewer({
                           width: parseInt(ref.style.width, 10),
                           height: parseInt(ref.style.height, 10),
                         },
-                        canvasWidth: container?.clientWidth,
-                        canvasHeight: container?.clientHeight
+                        canvasWidth: pageEl?.clientWidth,
+                        canvasHeight: pageEl?.clientHeight
                       } : inst
                     )
                   };
@@ -363,18 +367,18 @@ export function DocumentViewer({
               size={{ width: text.pos.width, height: text.pos.height }}
               position={{ x: text.pos.x, y: text.pos.y }}
               onDragStop={(e, d) => {
-                const container = window.document.getElementById('document-canvas-container');
+                const pageEl = window.document.getElementById('document-canvas-content');
                 setTexts(prev => prev.map(t => 
                   t.id === text.id ? { 
                     ...t, 
                     pos: { ...t.pos, x: d.x, y: d.y },
-                    canvasWidth: container?.clientWidth,
-                    canvasHeight: container?.clientHeight
+                    canvasWidth: pageEl?.clientWidth,
+                    canvasHeight: pageEl?.clientHeight
                   } : t
                 ));
               }}
               onResizeStop={(e, direction, ref, delta, position) => {
-                const container = window.document.getElementById('document-canvas-container');
+                const pageEl = window.document.getElementById('document-canvas-content');
                 setTexts(prev => prev.map(t => 
                   t.id === text.id ? {
                     ...t,
@@ -385,8 +389,8 @@ export function DocumentViewer({
                       height: parseInt(ref.style.height, 10)
                     },
                     fontSize: Math.max(12, parseInt(ref.style.height, 10) * 0.7),
-                    canvasWidth: container?.clientWidth,
-                    canvasHeight: container?.clientHeight
+                    canvasWidth: pageEl?.clientWidth,
+                    canvasHeight: pageEl?.clientHeight
                   } : t
                 ));
               }}
@@ -412,7 +416,7 @@ export function DocumentViewer({
                     }
                   }}
                   className="w-full h-full bg-transparent resize-none overflow-hidden outline-none break-words leading-tight"
-                  style={{ fontSize: `${text.fontSize}px`, color: text.color }}
+                  style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily) }}
                   spellCheck={false}
                 />
               ) : (
@@ -420,14 +424,29 @@ export function DocumentViewer({
                    onDoubleClick={() => setEditingTextId(text.id)}
                    className="w-full h-full cursor-move overflow-hidden"
                 >
-                   <p className="w-full h-full whitespace-pre-wrap break-words leading-tight" style={{ fontSize: `${text.fontSize}px`, color: text.color }}>
+                   <p className="w-full h-full whitespace-pre-wrap break-words leading-tight" style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily) }}>
                      {text.text}
                    </p>
                 </div>
               )}
 
               <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white border border-slate-200 shadow-lg rounded-lg p-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none group-hover:pointer-events-auto">
-                 <button 
+                 <select
+                   value={text.fontFamily || TEXT_FONTS[0].value}
+                   onMouseDown={(e) => e.stopPropagation()}
+                   onChange={(e) => {
+                     const val = e.target.value;
+                     setTexts(prev => prev.map(t => t.id === text.id ? { ...t, fontFamily: val } : t));
+                   }}
+                   className="h-6 px-1 text-xs text-slate-700 bg-white border border-slate-200 rounded cursor-pointer focus:outline-none focus:border-indigo-400 hover:border-indigo-300"
+                   title="Font"
+                 >
+                   {TEXT_FONTS.map(f => (
+                     <option key={f.value} value={f.value} style={{ fontFamily: f.css }}>{f.label}</option>
+                   ))}
+                 </select>
+                 <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
+                 <button
                    onClick={(e) => {
                      e.stopPropagation();
                      setTexts(prev => prev.map(t => t.id === text.id ? { ...t, fontSize: Math.max(8, t.fontSize - 2) } : t));
@@ -468,72 +487,6 @@ export function DocumentViewer({
             </Rnd>
           ))}
 
-          {dateState.enabled && renderedDimensions.width > 0 && (
-            <Rnd
-              default={{
-                x: dateState.pos.x,
-                y: dateState.pos.y,
-                width: dateState.pos.width,
-                height: dateState.pos.height
-              }}
-              onDragStop={(e, d) => {
-                setDateState({ ...dateState, pos: { ...dateState.pos, x: d.x, y: d.y } });
-              }}
-              onResizeStop={(e, direction, ref, delta, position) => {
-                setDateState({
-                  ...dateState,
-                  pos: {
-                    x: position.x,
-                    y: position.y,
-                    width: parseInt(ref.style.width, 10),
-                    height: parseInt(ref.style.height, 10),
-                  },
-                  fontSize: Math.max(12, parseInt(ref.style.height, 10) * 0.7)
-                });
-              }}
-              bounds="parent"
-              className="group rounded touch-none flex items-center z-50 hover:ring-2 hover:ring-green-400/50"
-            >
-              <div className="absolute inset-0 border-2 border-transparent group-active:border-green-600 group-hover:border-green-400 border-dashed rounded pointer-events-none z-10 transition-colors"></div>
-              
-              <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white border border-slate-200 shadow-lg rounded-lg p-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none group-hover:pointer-events-auto">
-                 <button 
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     setDateState(prev => ({ ...prev, fontSize: Math.max(8, (prev.fontSize || 16) - 2) }));
-                   }}
-                   className="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-green-600 hover:bg-green-50 rounded text-xs font-bold"
-                   title="Decrease font size"
-                 >
-                   A-
-                 </button>
-                 <button 
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     setDateState(prev => ({ ...prev, fontSize: (prev.fontSize || 16) + 2 }));
-                   }}
-                   className="w-6 h-6 flex items-center justify-center text-slate-600 hover:text-green-600 hover:bg-green-50 rounded text-sm font-bold"
-                   title="Increase font size"
-                 >
-                   A+
-                 </button>
-                 <div className="w-[1px] h-4 bg-slate-200 mx-1"></div>
-                 <button 
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     setDateState(prev => ({ ...prev, enabled: false }));
-                   }}
-                   className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"
-                 >
-                   ✕
-                 </button>
-              </div>
-
-              <div className="w-full h-full whitespace-nowrap text-slate-800 font-medium whitespace-nowrap flex items-center select-none" style={{ fontSize: `${dateState.fontSize || 16}px` }}>
-                {format(dateState.value, dateState.format)}
-              </div>
-            </Rnd>
-          )}
         </div>
       </div>
     </div>

@@ -5,6 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Fonts available for text fields. `value` maps to a pdf-lib StandardFont on
+// export; `css` is used to render the same font in the browser preview.
+export const TEXT_FONTS = [
+  { label: 'Sans', value: 'Helvetica', css: 'Helvetica, Arial, sans-serif' },
+  { label: 'Serif', value: 'Times', css: '"Times New Roman", Times, serif' },
+  { label: 'Mono', value: 'Courier', css: '"Courier New", Courier, monospace' },
+] as const;
+
+export type TextFontValue = (typeof TEXT_FONTS)[number]['value'];
+
+export function fontCss(value?: string): string {
+  return (TEXT_FONTS.find(f => f.value === value) || TEXT_FONTS[0]).css;
+}
+
 // simple bg removal
 export function removeImageBackground(
   imageUrl: string,

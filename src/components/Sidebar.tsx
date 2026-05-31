@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, Download, FileImage, FileSignature, Calendar, Settings, Image as ImageIcon, PenTool } from 'lucide-react';
-import { format } from 'date-fns';
+import { Upload, Download, FileImage, FileSignature, Settings, Image as ImageIcon, PenTool, X, ShieldCheck } from 'lucide-react';
 import { cn } from '@/src/utils';
 import { SavedAsset } from '../types';
 import { DrawSignature } from './DrawSignature';
@@ -20,8 +19,7 @@ interface SidebarProps {
   setExcludedPages: (v: string) => void;
   savedAssets: SavedAsset[];
   onSelectAsset: (asset: SavedAsset) => void;
-  dateEnabled: boolean;
-  setDateEnabled: (v: boolean) => void;
+  onDeleteAsset: (id: string) => void;
   onDownload: () => void;
   hasDocument: boolean;
   hasSignature: boolean;
@@ -44,8 +42,7 @@ export function Sidebar({
   setExcludedPages,
   savedAssets,
   onSelectAsset,
-  dateEnabled,
-  setDateEnabled,
+  onDeleteAsset,
   onDownload,
   hasDocument,
   hasSignature,
@@ -251,22 +248,35 @@ export function Sidebar({
           {savedAssets.length > 0 && (
             <div className="space-y-2 pt-2">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Saved Assets</label>
-              <div className="flex gap-2 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto pb-2 pt-2 px-1">
                 {savedAssets.map(asset => (
-                  <button 
-                    key={asset.id} 
-                    onClick={() => onSelectAsset(asset)}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("application/my-signature", JSON.stringify({ url: asset.url, aspectRatio: asset.aspectRatio }));
-                    }}
-                    className={cn(
-                      "w-12 h-12 shrink-0 border rounded flex items-center justify-center p-1 bg-slate-50 transition-colors cursor-grab active:cursor-grabbing",
-                      signatureUrl === asset.url ? "border-indigo-500 bg-indigo-50" : "border-slate-200 hover:border-indigo-300"
-                    )}
-                  >
-                    <img src={asset.url} className="max-w-full max-h-full object-contain pointer-events-none" />
-                  </button>
+                  <div key={asset.id} className="relative group shrink-0">
+                    <button
+                      onClick={() => onSelectAsset(asset)}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("application/my-signature", JSON.stringify({ url: asset.url, aspectRatio: asset.aspectRatio }));
+                      }}
+                      className={cn(
+                        "w-12 h-12 border rounded flex items-center justify-center p-1 bg-slate-50 transition-colors cursor-grab active:cursor-grabbing",
+                        signatureUrl === asset.url ? "border-indigo-500 bg-indigo-50" : "border-slate-200 hover:border-indigo-300"
+                      )}
+                    >
+                      <img src={asset.url} className="max-w-full max-h-full object-contain pointer-events-none" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteAsset(asset.id);
+                      }}
+                      title="Remove saved asset"
+                      aria-label="Remove saved asset"
+                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all z-10"
+                    >
+                      <X className="w-2.5 h-2.5" strokeWidth={3} />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -330,25 +340,10 @@ export function Sidebar({
           )}
         </section>
 
-        {/* Enhancements Section */}
+        {/* Text Section */}
         <section className={cn("space-y-4 pt-2 transition-opacity", !hasDocument && "opacity-50 pointer-events-none")}>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-600">Include Date Stamp</span>
-            <button 
-              onClick={() => setDateEnabled(!dateEnabled)}
-              className={cn(
-                "w-10 h-5 rounded-full relative transition-colors",
-                dateEnabled ? "bg-indigo-600" : "bg-slate-200"
-              )}
-            >
-              <div className={cn(
-                "absolute top-1 w-3 h-3 bg-white rounded-full transition-all",
-                dateEnabled ? "left-6" : "left-1"
-              )}></div>
-            </button>
-          </div>
-          
-          <div className="pt-2 border-t border-slate-100">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">3. Text</h2>
+          <div>
              <button
                onClick={onAddText}
                className="w-full py-2.5 px-3 bg-white border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 font-medium text-sm rounded flex items-center justify-center gap-2 transition-colors shadow-sm"
@@ -359,15 +354,21 @@ export function Sidebar({
              >
                <span className="text-lg">T</span> Add Text Field
              </button>
-             <p className="text-[10px] text-slate-400 text-center mt-1.5">Click to add or drag to document</p>
+             <p className="text-[10px] text-slate-400 text-center mt-1.5">Click to add or drag to document, then pick a font from its toolbar</p>
           </div>
         </section>
       </div>
 
-      <div className="mt-auto p-4 md:p-6 border-t border-slate-100 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      <div className="mt-auto p-4 md:p-6 border-t border-slate-100 pb-[calc(1rem+env(safe-area-inset-bottom))] space-y-3">
         <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3">
           <p className="text-[11px] text-indigo-700 leading-relaxed">
             <strong>Pro Tip:</strong> Drag your signature carefully to position it exactly where you need it on the document.
+          </p>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 flex gap-2.5">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" strokeWidth={2.2} />
+          <p className="text-[11px] text-emerald-800 leading-relaxed">
+            <strong className="font-semibold">100% private.</strong> Your documents and signatures never leave your device. All processing happens locally in your browser — nothing is uploaded to or stored on any server.
           </p>
         </div>
       </div>
