@@ -1,0 +1,8 @@
+{
+  "name": "SignEase Document Editor",
+  "description": "Upload a PDF or image, insert a signature with background removal, add a date, and export the signed document seamlessly.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
