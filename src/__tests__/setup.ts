@@ -53,6 +53,21 @@ if (!globalThis.crypto?.randomUUID) {
   });
 }
 
+// --- matchMedia mock ---
+// jsdom does not implement matchMedia; useIsMobile() relies on it.
+if (typeof window.matchMedia !== 'function') {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as any;
+}
+
 // --- ResizeObserver mock ---
 class MockResizeObserver {
   observe = vi.fn();

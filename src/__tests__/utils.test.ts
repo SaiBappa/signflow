@@ -36,13 +36,18 @@ describe('cn (className utility)', () => {
 // TEXT_FONTS constant
 // ---------------------------------------------------------------------------
 describe('TEXT_FONTS', () => {
-  it('should have exactly 3 font entries', () => {
-    expect(TEXT_FONTS).toHaveLength(3);
+  it('should have exactly 4 font entries', () => {
+    expect(TEXT_FONTS).toHaveLength(4);
   });
 
-  it('should include Sans, Serif, and Mono labels', () => {
+  it('should include expected font labels', () => {
     const labels = TEXT_FONTS.map(f => f.label);
-    expect(labels).toEqual(['Sans', 'Serif', 'Mono']);
+    expect(labels).toEqual([
+      'Sans-Serif (Arial)',
+      'Serif (Times)',
+      'Monospace (Courier)',
+      'Faruma (Dhivehi)',
+    ]);
   });
 
   it('each entry should have label, value, and css properties', () => {
@@ -56,8 +61,8 @@ describe('TEXT_FONTS', () => {
     }
   });
 
-  it('should map to valid pdf-lib StandardFont names', () => {
-    const validNames = ['Helvetica', 'Times', 'Courier'];
+  it('should map to valid font value names', () => {
+    const validNames = ['Helvetica', 'Times', 'Courier', 'Faruma'];
     TEXT_FONTS.forEach(f => {
       expect(validNames).toContain(f.value);
     });
@@ -69,7 +74,7 @@ describe('TEXT_FONTS', () => {
 // ---------------------------------------------------------------------------
 describe('fontCss', () => {
   it('should return correct CSS for Helvetica', () => {
-    expect(fontCss('Helvetica')).toBe('Helvetica, Arial, sans-serif');
+    expect(fontCss('Helvetica')).toBe('Arial, Helvetica, sans-serif');
   });
 
   it('should return correct CSS for Times', () => {
