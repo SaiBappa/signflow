@@ -51,6 +51,7 @@ pdf.js getTextContent()  ─►  extractPageRuns()  ─►  edit hotspots over e
 | v1.1 | Line grouping (whole line edits at once); background/ink colour sampling; width-fit auto-shrink | ✅ shipped |
 | v1.2 | Real font-**class** resolution (serif/sans/mono) via pdf.js `styles` map — serif/mono docs no longer collapse to Helvetica | ✅ shipped |
 | v2 | Spike: true binary embedded-font re-embedding | ⛔ assessed — not reliably shippable (see below) |
+| v2.0 | **Weight/style fidelity via bundled metric-compatible TTFs** — bold/italic recovery per run + Liberation Sans/Serif/Mono embedded through `@pdf-lib/fontkit` (the pragmatic path recommended below) | ✅ shipped |
 
 ## Coordinate recipe (the load-bearing math)
 
@@ -69,6 +70,28 @@ widthPx      = item.width * displayScale
 
 This places `pos` in the exact display-pixel space `TextInstance` / `RedactInstance`
 already use, so export reproduces it at the original location with no extra mapping.
+
+## v2.0 — weight/style fidelity (shipped)
+
+Implements the recommendation at the bottom of this doc:
+
+- **Style recovery** (`textExtraction.ts`): each run now carries `bold`/`italic`,
+  recovered from the pdf.js translated font object in `page.commonObjs`
+  (`bold`/`italic`/`black` flags + BaseFont name) with a name-suffix heuristic
+  fallback (`detectFontStyle()` in `fontMatch.ts`). Class resolution (serif/sans/mono)
+  is unchanged from v1.2.
+- **Embedded export** (`src/services/fontRegistry.ts`): the pdf-lib export path embeds
+  the bundled, metric-compatible **Liberation Sans/Serif/Mono** TTFs
+  (`public/fonts/liberation/`, SIL OFL) per (family, bold, italic) combination via
+  `@pdf-lib/fontkit` with subsetting; Standard-14 styled variants remain the fallback
+  when a TTF can't be fetched/embedded. Faruma is embedded the same way, which makes
+  **Thaana text survive PDF export** (Standard-14 fonts can't encode it).
+- **Screen = export**: `TEXT_FONTS` css stacks now lead with the Liberation faces
+  (declared via `@font-face` in `index.css`), the canvas raster export paths draw with
+  `canvasFontString()` after `ensureTextFontsLoaded()`, and the width-fit measurement
+  in `enrichRunFromCanvas()` measures with the recovered weight/style.
+- **UI**: the text-overlay toolbar gained Bold/Italic toggles, so recovered styles are
+  user-editable.
 
 ## v2 feasibility — true binary font embedding (assessed, deferred)
 
@@ -96,5 +119,6 @@ best-effort fast path when a full (`name`-table-present) embedded font is detect
   rectangle (visually hidden, but present to text extraction) — acceptable for editing;
   use the Redact tool for true removal.
 - Colour seam can appear on textured/photographic backgrounds (cover rect is a solid fill).
-- Font fidelity is family-class accurate (serif/sans/mono), not exact glyphs (see v2).
+- Font fidelity is family-class + weight/style accurate (Liberation metric-compatible
+  faces, v2.0), not the exact original glyphs (byte-identical re-embedding deferred, see below).
 - Scanned PDFs have no text layer — the panel directs users to run OCR first.

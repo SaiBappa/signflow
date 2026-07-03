@@ -24,6 +24,7 @@ export const DRAW_SHAPES: { id: DrawShape; label: string }[] = [
   { id: 'line', label: 'Line' },
   { id: 'arrow', label: 'Arrow' },
   { id: 'highlight', label: 'Highlight' },
+  { id: 'redact', label: 'Redact' },
 ];
 
 export const COMMENT_DEFAULT = { width: 220, height: 120 };
@@ -104,7 +105,7 @@ export function drawDrawingToCanvas(
 
   if (d.shape === 'rectangle') {
     ctx.strokeRect(boxX, boxY, boxW, boxH);
-  } else if (d.shape === 'highlight') {
+  } else if (d.shape === 'highlight' || d.shape === 'redact') {
     ctx.fillRect(boxX, boxY, boxW, boxH);
   } else if (d.shape === 'ellipse') {
     ctx.beginPath();
@@ -271,12 +272,12 @@ export function drawDrawingToPdf(
     }
   };
 
-  if (d.shape === 'highlight') {
+  if (d.shape === 'highlight' || d.shape === 'redact') {
     const { r: hr, g: hg, b: hb } = hexToRgb01(d.color);
     const bl = toPdf(boxX, boxY + boxH);
     page.drawRectangle({
       x: bl.x, y: bl.y, width: boxW, height: boxH,
-      color: rgb(hr, hg, hb), opacity: d.opacity ?? 0.4, rotate: degrees(-rotation),
+      color: rgb(hr, hg, hb), opacity: d.opacity ?? (d.shape === 'redact' ? 1 : 0.4), rotate: degrees(-rotation),
     });
     return;
   }

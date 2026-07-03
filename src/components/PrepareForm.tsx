@@ -37,6 +37,8 @@ import type {
 } from '../services/formDetectionTypes';
 import { DEFAULT_DETECTION_OPTIONS } from '../services/formDetectionTypes';
 import { detectFormFields } from '../services/formDetection';
+import { detectFormFieldsAI } from '../services/aiFormDetection';
+import { useAiAvailable } from '../services/geminiClient';
 import { buildFillablePdf } from '../services/fillableFormExport';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
@@ -110,6 +112,11 @@ export function PrepareForm() {
   const [pageNumber, setPageNumber] = useState(1); // 1-based
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
 
+  // Whether AI detection is usable (server key or a user-supplied key).
+  const aiAvailable = useAiAvailable();
+  // Detection engine: Gemini vision (default) or local heuristics.
+  const [useAI, setUseAI] = useState<boolean>(true);
+
   // Detection options.
   const [detectText, setDetectText] = useState(DEFAULT_DETECTION_OPTIONS.detectText);
   const [detectCheckbox, setDetectCheckbox] = useState(DEFAULT_DETECTION_OPTIONS.detectCheckbox);
@@ -144,7 +151,9 @@ export function PrepareForm() {
           detectDate,
           sensitivity: sensitivity / 100,
         };
-        const res = await detectFormFields(target, options);
+        const res = useAI
+          ? await detectFormFieldsAI(target, options)
+          : await detectFormFields(target, options);
         setResult(res);
         setFields(res.fields.map(f => ({ ...f })));
         setSelectedFieldId(null);
@@ -153,12 +162,16 @@ export function PrepareForm() {
         console.error('Form detection failed', e);
         setResult(null);
         setFields([]);
-        setError('We could not scan this PDF for form fields. It may be encrypted, corrupt, or an unsupported file.');
+        setError(
+          useAI
+            ? `AI detection failed: ${e instanceof Error ? e.message : 'unknown error'}. Turn off "AI detection" to use the offline scanner.`
+            : 'We could not scan this PDF for form fields. It may be encrypted, corrupt, or an unsupported file.',
+        );
       } finally {
         setIsDetecting(false);
       }
     },
-    [detectText, detectCheckbox, detectSignature, detectDate, sensitivity],
+    [useAI, detectText, detectCheckbox, detectSignature, detectDate, sensitivity],
   );
 
   // On first file selection, auto-run detection.
@@ -265,6 +278,47 @@ export function PrepareForm() {
           )}
         </div>
       )}
+
+      {/* Detection engine */}
+      <ToolSection label="Engine">
+        <button
+          type="button"
+          onClick={() => setUseAI(v => !v)}
+          className={cn(
+            'w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all cursor-pointer',
+            useAI
+              ? 'border-transparent text-white shadow-sm bg-gradient-to-r from-indigo-500 to-violet-500'
+              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300',
+          )}
+        >
+          <Sparkles className={cn('w-4 h-4 shrink-0', useAI ? 'text-white' : 'text-indigo-500')} />
+          <span className="flex-1 min-w-0">
+            <span className="block text-xs font-bold leading-tight">AI detection</span>
+            <span className={cn('block text-[10px] font-medium leading-tight', useAI ? 'text-white/80' : 'text-slate-400')}>
+              {useAI ? 'Gemini 3.5 Flash · vision' : 'Offline heuristic scanner'}
+            </span>
+          </span>
+          <span
+            className={cn(
+              'relative w-8 h-[18px] rounded-full shrink-0 transition-colors',
+              useAI ? 'bg-white/30' : 'bg-slate-200',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 w-3.5 h-3.5 rounded-full bg-white shadow transition-all',
+                useAI ? 'left-[15px]' : 'left-0.5',
+              )}
+            />
+          </span>
+        </button>
+        {useAI && !aiAvailable && (
+          <div className="flex items-start gap-1.5 text-[10px] text-amber-600 bg-amber-50/60 p-2 rounded-lg border border-amber-100 mt-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+            <span>No Gemini API key available. Add one in the panel, or switch to the offline scanner.</span>
+          </div>
+        )}
+      </ToolSection>
 
       {/* Detection controls */}
       <ToolSection label="Detect">

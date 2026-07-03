@@ -29,7 +29,7 @@ vi.hoisted(() => {
   }
 });
 
-import { matchStandardFont } from '../utils/fontMatch';
+import { matchStandardFont, detectFontStyle } from '../utils/fontMatch';
 import { extractPageRuns } from '../services/textExtraction';
 
 describe('matchStandardFont', () => {
@@ -245,5 +245,108 @@ describe('extractPageRuns coordinate math', () => {
     const runs = await extractPageRuns(narrowDoc, 1, displayWidth, displayHeight);
     // width = 1 * 0.5 = 0.5 -> clamped to 4
     expect(runs[0].pos.width).toBe(4);
+  });
+});
+
+describe('detectFontStyle', () => {
+  it('detects bold from BaseFont suffixes', () => {
+    expect(detectFontStyle('ABCDEF+Arial-Bold')).toEqual({ bold: true, italic: false });
+    expect(detectFontStyle('Helvetica-Black')).toEqual({ bold: true, italic: false });
+    expect(detectFontStyle('OpenSans-SemiBold')).toEqual({ bold: true, italic: false });
+  });
+  it('detects italic and oblique', () => {
+    expect(detectFontStyle('Times-Italic')).toEqual({ bold: false, italic: true });
+    expect(detectFontStyle('Courier-Oblique')).toEqual({ bold: false, italic: true });
+  });
+  it('detects combined bold italic', () => {
+    expect(detectFontStyle('ABCDEF+TimesNewRomanPS-BoldItalicMT')).toEqual({ bold: true, italic: true });
+  });
+  it('returns plain for regular names and empty input', () => {
+    expect(detectFontStyle('ArialMT')).toEqual({ bold: false, italic: false });
+    expect(detectFontStyle(undefined)).toEqual({ bold: false, italic: false });
+    expect(detectFontStyle(null)).toEqual({ bold: false, italic: false });
+  });
+});
+
+describe('extractPageRuns style recovery', () => {
+  const displayWidth = 306;
+  const displayHeight = 396;
+  const vpTransform = [0.5, 0, 0, -0.5, 0, 396];
+  const getViewport = ({ scale }: { scale: number }) => ({
+    width: 612 * scale,
+    height: 792 * scale,
+    transform: scale === 0.5 ? vpTransform : [scale, 0, 0, -scale, 0, 792 * scale],
+  });
+
+  it('recovers bold/italic from the translated font object in commonObjs', async () => {
+    const page = {
+      getViewport,
+      commonObjs: {
+        has: (id: string) => id === 'g_f1',
+        get: (_id: string) => ({ name: 'ABCDEF+SomeFont', bold: true, italic: true }),
+      },
+      async getTextContent() {
+        return {
+          items: [{ str: 'Hello', fontName: 'g_f1', width: 40, height: 12, transform: [12, 0, 0, 12, 72, 700] }],
+        };
+      },
+    };
+    const doc = { async getPage() { return page; } } as any;
+    const runs = await extractPageRuns(doc, 1, displayWidth, displayHeight);
+    expect(runs[0].bold).toBe(true);
+    expect(runs[0].italic).toBe(true);
+  });
+
+  it('falls back to name-based detection from the font object name', async () => {
+    const page = {
+      getViewport,
+      commonObjs: {
+        has: () => true,
+        get: () => ({ name: 'ABCDEF+Arial-BoldItalic', bold: false, italic: false }),
+      },
+      async getTextContent() {
+        return {
+          items: [{ str: 'Hello', fontName: 'g_f1', width: 40, height: 12, transform: [12, 0, 0, 12, 72, 700] }],
+        };
+      },
+    };
+    const doc = { async getPage() { return page; } } as any;
+    const runs = await extractPageRuns(doc, 1, displayWidth, displayHeight);
+    expect(runs[0].bold).toBe(true);
+    expect(runs[0].italic).toBe(true);
+  });
+
+  it('defaults to regular when no font info is available (no commonObjs)', async () => {
+    const page = {
+      getViewport,
+      async getTextContent() {
+        return {
+          items: [{ str: 'Hello', fontName: 'g_f1', width: 40, height: 12, transform: [12, 0, 0, 12, 72, 700] }],
+        };
+      },
+    };
+    const doc = { async getPage() { return page; } } as any;
+    const runs = await extractPageRuns(doc, 1, displayWidth, displayHeight);
+    expect(runs[0].bold).toBe(false);
+    expect(runs[0].italic).toBe(false);
+  });
+
+  it('does not let commonObjs.get errors break extraction', async () => {
+    const page = {
+      getViewport,
+      commonObjs: {
+        has: () => true,
+        get: () => { throw new Error('not resolved yet'); },
+      },
+      async getTextContent() {
+        return {
+          items: [{ str: 'Hello', fontName: 'g_f1', width: 40, height: 12, transform: [12, 0, 0, 12, 72, 700] }],
+        };
+      },
+    };
+    const doc = { async getPage() { return page; } } as any;
+    const runs = await extractPageRuns(doc, 1, displayWidth, displayHeight);
+    expect(runs).toHaveLength(1);
+    expect(runs[0].bold).toBe(false);
   });
 });

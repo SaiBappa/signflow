@@ -74,15 +74,15 @@ describe('TEXT_FONTS', () => {
 // ---------------------------------------------------------------------------
 describe('fontCss', () => {
   it('should return correct CSS for Helvetica', () => {
-    expect(fontCss('Helvetica')).toBe('Arial, Helvetica, sans-serif');
+    expect(fontCss('Helvetica')).toBe('"Liberation Sans", Arial, Helvetica, sans-serif');
   });
 
   it('should return correct CSS for Times', () => {
-    expect(fontCss('Times')).toBe('"Times New Roman", Times, serif');
+    expect(fontCss('Times')).toBe('"Liberation Serif", "Times New Roman", Times, serif');
   });
 
   it('should return correct CSS for Courier', () => {
-    expect(fontCss('Courier')).toBe('"Courier New", Courier, monospace');
+    expect(fontCss('Courier')).toBe('"Liberation Mono", "Courier New", Courier, monospace');
   });
 
   it('should fall back to Sans (Helvetica) for undefined value', () => {

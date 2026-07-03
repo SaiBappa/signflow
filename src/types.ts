@@ -55,6 +55,8 @@ export interface TextInstance {
   fontSize: number;
   color: string;
   fontFamily?: string;
+  bold?: boolean;
+  italic?: boolean;
   canvasWidth?: number;
   canvasHeight?: number;
 }
@@ -121,7 +123,7 @@ export interface CommentInstance {
 }
 
 // Markup drawn freely on top of the document.
-export type DrawShape = 'rectangle' | 'ellipse' | 'highlight' | 'line' | 'arrow' | 'freehand';
+export type DrawShape = 'rectangle' | 'ellipse' | 'highlight' | 'line' | 'arrow' | 'freehand' | 'redact';
 
 export interface DrawInstance {
   id: string;

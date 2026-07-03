@@ -17,6 +17,13 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // Proxy AI requests to the backend server (run `npm run dev:server`).
+      proxy: {
+        '/api': {
+          target: `http://localhost:${process.env.PORT || 8080}`,
+          changeOrigin: true,
+        },
+      },
     },
     // Vitest configuration
     test: {

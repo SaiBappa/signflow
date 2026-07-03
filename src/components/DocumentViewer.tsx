@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Rnd } from 'react-rnd';
-import { ChevronLeft, ChevronRight, RotateCw, ShieldCheck, MapPin, CheckCircle, RefreshCw, X, CheckSquare, Circle, AlignLeft, Pin, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCw, ShieldCheck, MapPin, CheckCircle, RefreshCw, X, CheckSquare, Circle, AlignLeft, Lock } from 'lucide-react';
 import { DocumentFile, SignatureState, TextInstance, StampInstance, RedactInstance, FormFieldInstance, FormFieldType, CommentInstance, DrawInstance, DrawShape } from '../types';
 import { extractPageRuns, ExtractedRun } from '../services/textExtraction';
 
@@ -11,11 +11,6 @@ function measureCtx(): CanvasRenderingContext2D | null {
   const c = window.document.createElement('canvas');
   _measureCtx = c.getContext('2d');
   return _measureCtx;
-}
-function runFontCss(family: string): string {
-  if (family === 'Times') return "'Times New Roman', Times, serif";
-  if (family === 'Courier') return "'Courier New', Courier, monospace";
-  return 'Helvetica, Arial, sans-serif';
 }
 function toHex(r: number, g: number, b: number): string {
   const h = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
@@ -81,10 +76,11 @@ function enrichRunFromCanvas(
     // Tainted/unreadable canvas — keep defaults.
   }
 
-  // Width-fit: shrink standard-font reprint to fit the original box width.
+  // Width-fit: shrink the reprint to fit the original box width, measured
+  // with the same weight/style the reprint will render and export with.
   const mctx = measureCtx();
   if (mctx && run.text.trim()) {
-    mctx.font = `${run.fontSize}px ${runFontCss(run.fontFamily)}`;
+    mctx.font = canvasFontString(run.fontSize, run.fontFamily, run.bold, run.italic);
     const w = mctx.measureText(run.text).width;
     if (w > run.pos.width && run.pos.width > 0) {
       fontSize = Math.max(8, run.fontSize * (run.pos.width / w));
@@ -94,7 +90,7 @@ function enrichRunFromCanvas(
   return { ...run, bgColor, textColor, fontSize };
 }
 import { usePdf } from '../hooks/usePdf';
-import { cn, isPageInRange, fontCss, TEXT_FONTS } from '../utils';
+import { cn, isPageInRange, fontCss, canvasFontString, TEXT_FONTS } from '../utils';
 import { handleThaanaKeyDown, isDhivehiFont } from '../utils/thaanaKeyboard';
 import { CommentOverlay } from './overlays/CommentOverlay';
 import { DrawingOverlay } from './overlays/DrawingOverlay';
@@ -761,7 +757,7 @@ function PdfPage({
                 }
               }}
               className="w-full h-full bg-transparent resize-none overflow-hidden outline-none break-words leading-tight"
-              style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily) }}
+              style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily), fontWeight: text.bold ? 'bold' : undefined, fontStyle: text.italic ? 'italic' : undefined }}
               spellCheck={false}
             />
           ) : (
@@ -772,7 +768,7 @@ function PdfPage({
                }}
                className="w-full h-full overflow-hidden select-none"
             >
-               <p className="w-full h-full whitespace-pre-wrap break-words leading-tight pointer-events-none" dir={isDhivehiFont(text.fontFamily) ? 'rtl' : 'ltr'} style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily) }}>
+               <p className="w-full h-full whitespace-pre-wrap break-words leading-tight pointer-events-none" dir={isDhivehiFont(text.fontFamily) ? 'rtl' : 'ltr'} style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily), fontWeight: text.bold ? 'bold' : undefined, fontStyle: text.italic ? 'italic' : undefined }}>
                  {text.text}
                </p>
             </div>
@@ -798,6 +794,27 @@ function PdfPage({
                  <option key={f.value} value={f.value} style={{ fontFamily: f.css }}>{f.label}</option>
                ))}
              </select>
+             <div className="w-[1px] h-5 bg-slate-200"></div>
+             <button
+               onClick={(e) => {
+                 e.stopPropagation();
+                 setTexts(prev => prev.map(t => t.id === text.id ? { ...t, bold: !t.bold } : t));
+               }}
+               className={cn("w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-md text-sm font-bold cursor-pointer shrink-0", text.bold ? "text-indigo-600 bg-indigo-50" : "text-slate-600 hover:text-indigo-600 hover:bg-indigo-50")}
+               title="Bold"
+             >
+               B
+             </button>
+             <button
+               onClick={(e) => {
+                 e.stopPropagation();
+                 setTexts(prev => prev.map(t => t.id === text.id ? { ...t, italic: !t.italic } : t));
+               }}
+               className={cn("w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-md text-sm italic font-serif cursor-pointer shrink-0", text.italic ? "text-indigo-600 bg-indigo-50" : "text-slate-600 hover:text-indigo-600 hover:bg-indigo-50")}
+               title="Italic"
+             >
+               I
+             </button>
              <div className="w-[1px] h-5 bg-slate-200"></div>
              <button
                onClick={(e) => {
@@ -948,24 +965,13 @@ function PdfPage({
               <input
                 type="color"
                 value={field.color || '#000000'}
-                onChange={e => setFormFields?.(prev => prev.map(f => f.id === field.id ? { ...f, color: e.target.value } : f))}
+                onChange={e => {
+                  const color = e.target.value;
+                  setFormFields?.(prev => prev.map(f => f.id === field.id ? { ...f, color } : f));
+                  onSetDefaultColor?.(field.type, color);
+                }}
                 className="w-9 h-9 md:w-7 md:h-7 p-0.5 border border-slate-200 rounded-md cursor-pointer"
-                title="Change color"
-              />
-              <button
-                onClick={(e) => { e.stopPropagation(); onSetDefaultColor?.(field.type, field.color || '#000000'); }}
-                className="w-9 h-9 md:w-7 md:h-7 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md cursor-pointer"
-                title={`Set as default color for new ${field.type} fields`}
-              >
-                <Pin size={14} />
-              </button>
-              <div className="w-[1px] h-5 bg-slate-200"></div>
-              <input
-                type="text"
-                placeholder="Add comment..."
-                value={field.comment || ''}
-                onChange={e => setFormFields?.(prev => prev.map(f => f.id === field.id ? { ...f, comment: e.target.value } : f))}
-                className="border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-600 focus:outline-none focus:border-indigo-500 bg-slate-50 cursor-text font-medium w-36"
+                title="Pick colour — also sets the default for new fields"
               />
               <div className="w-[1px] h-5 bg-slate-200"></div>
               <button
@@ -2228,7 +2234,7 @@ export function DocumentViewer({
                       }
                     }}
                     className="w-full h-full bg-transparent resize-none overflow-hidden outline-none break-words leading-tight"
-                    style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily) }}
+                    style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily), fontWeight: text.bold ? 'bold' : undefined, fontStyle: text.italic ? 'italic' : undefined }}
                     spellCheck={false}
                   />
                 ) : (
@@ -2239,7 +2245,7 @@ export function DocumentViewer({
                      }}
                      className="w-full h-full overflow-hidden select-none"
                   >
-                     <p className="w-full h-full whitespace-pre-wrap break-words leading-tight pointer-events-none" dir={isDhivehiFont(text.fontFamily) ? 'rtl' : 'ltr'} style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily) }}>
+                     <p className="w-full h-full whitespace-pre-wrap break-words leading-tight pointer-events-none" dir={isDhivehiFont(text.fontFamily) ? 'rtl' : 'ltr'} style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily), fontWeight: text.bold ? 'bold' : undefined, fontStyle: text.italic ? 'italic' : undefined }}>
                        {text.text}
                      </p>
                   </div>
@@ -2264,6 +2270,27 @@ export function DocumentViewer({
                        <option key={f.value} value={f.value} style={{ fontFamily: f.css }}>{f.label}</option>
                      ))}
                    </select>
+                   <div className="w-[1px] h-5 bg-slate-200"></div>
+                   <button
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       setTexts(prev => prev.map(t => t.id === text.id ? { ...t, bold: !t.bold } : t));
+                     }}
+                     className={cn("w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-md text-sm font-bold cursor-pointer shrink-0", text.bold ? "text-indigo-600 bg-indigo-50" : "text-slate-600 hover:text-indigo-600 hover:bg-indigo-50")}
+                     title="Bold"
+                   >
+                     B
+                   </button>
+                   <button
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       setTexts(prev => prev.map(t => t.id === text.id ? { ...t, italic: !t.italic } : t));
+                     }}
+                     className={cn("w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-md text-sm italic font-serif cursor-pointer shrink-0", text.italic ? "text-indigo-600 bg-indigo-50" : "text-slate-600 hover:text-indigo-600 hover:bg-indigo-50")}
+                     title="Italic"
+                   >
+                     I
+                   </button>
                    <div className="w-[1px] h-5 bg-slate-200"></div>
                    <button
                      onClick={(e) => {
@@ -2414,24 +2441,13 @@ export function DocumentViewer({
                     <input
                       type="color"
                       value={field.color || '#000000'}
-                      onChange={e => setFormFields?.(prev => prev.map(f => f.id === field.id ? { ...f, color: e.target.value } : f))}
+                      onChange={e => {
+                        const color = e.target.value;
+                        setFormFields?.(prev => prev.map(f => f.id === field.id ? { ...f, color } : f));
+                        onSetDefaultColor?.(field.type, color);
+                      }}
                       className="w-9 h-9 md:w-7 md:h-7 p-0.5 border border-slate-200 rounded-md cursor-pointer"
-                      title="Change color"
-                    />
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onSetDefaultColor?.(field.type, field.color || '#000000'); }}
-                      className="w-9 h-9 md:w-7 md:h-7 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md cursor-pointer"
-                      title={`Set as default color for new ${field.type} fields`}
-                    >
-                      <Pin size={14} />
-                    </button>
-                    <div className="w-[1px] h-5 bg-slate-200"></div>
-                    <input
-                      type="text"
-                      placeholder="Add comment..."
-                      value={field.comment || ''}
-                      onChange={e => setFormFields?.(prev => prev.map(f => f.id === field.id ? { ...f, comment: e.target.value } : f))}
-                      className="border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-600 focus:outline-none focus:border-indigo-500 bg-slate-50 cursor-text font-medium w-36"
+                      title="Pick colour — also sets the default for new fields"
                     />
                     <div className="w-[1px] h-5 bg-slate-200"></div>
                     <button

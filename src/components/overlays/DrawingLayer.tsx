@@ -113,7 +113,7 @@ export function DrawingLayer({ active, pageIndex, shape, color, strokeWidth, opa
     const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
     const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
     if (shape === 'rectangle') return <rect x={x} y={y} width={w} height={h} {...common} />;
-    if (shape === 'highlight') return <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={opacity} stroke="none" />;
+    if (shape === 'highlight' || shape === 'redact') return <rect x={x} y={y} width={w} height={h} fill={color} fillOpacity={opacity} stroke="none" />;
     if (shape === 'ellipse') return <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...common} />;
     if (shape === 'line' || shape === 'arrow') return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} {...common} />;
     return null;

@@ -39,3 +39,22 @@ export function matchStandardFont(pdfFontName: string | undefined | null): Stand
 
   return 'Helvetica';
 }
+
+export interface FontStyleFlags {
+  bold: boolean;
+  italic: boolean;
+}
+
+/**
+ * Recovers bold/italic style from a PDF font name (e.g. a BaseFont like
+ * 'ABCDEF+Arial-BoldItalic' or a resolved family). Weight keywords cover the
+ * common foundry spellings; 'oblique' counts as italic.
+ */
+export function detectFontStyle(pdfFontName: string | undefined | null): FontStyleFlags {
+  if (!pdfFontName) return { bold: false, italic: false };
+  const name = pdfFontName.toLowerCase();
+  return {
+    bold: /bold|black|heavy|semibold|demibold|demi\b|extrabold|ultrabold/.test(name),
+    italic: /italic|oblique/.test(name),
+  };
+}

@@ -63,6 +63,9 @@ function ShapeSvg({ d }: { d: DrawInstance }) {
       {d.shape === 'highlight' && (
         <rect x="0" y="0" width="100" height="100" fill={stroke} fillOpacity={d.opacity ?? 0.4} stroke="none" />
       )}
+      {d.shape === 'redact' && (
+        <rect x="0" y="0" width="100" height="100" fill={stroke} fillOpacity={d.opacity ?? 1} stroke="none" />
+      )}
       {d.shape === 'ellipse' && <ellipse cx="50" cy="50" rx="50" ry="50" {...common} />}
       {(d.shape === 'line' || d.shape === 'arrow') && pts.length >= 4 && (
         <line
@@ -83,7 +86,7 @@ function ShapeSvg({ d }: { d: DrawInstance }) {
 
 export const DrawingOverlay: React.FC<DrawingOverlayProps> = ({ drawing, isSelected, pageElId, onUpdate, onDelete, onSelect }) => {
   const getPageEl = () => window.document.getElementById(pageElId);
-  const isHighlight = drawing.shape === 'highlight';
+  const isHighlight = drawing.shape === 'highlight' || drawing.shape === 'redact';
   const isMobile = useIsMobile();
 
   return (

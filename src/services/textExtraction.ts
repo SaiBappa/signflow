@@ -1,5 +1,5 @@
 import * as pdfjsLib from 'pdfjs-dist';
-import { matchStandardFont, StandardFontKey } from '../utils/fontMatch';
+import { matchStandardFont, detectFontStyle, StandardFontKey } from '../utils/fontMatch';
 
 export interface ExtractedRun {
   id: string; // crypto.randomUUID()
@@ -8,6 +8,8 @@ export interface ExtractedRun {
   pos: { x: number; y: number; width: number; height: number }; // DISPLAY px, top-left origin
   fontSize: number; // DISPLAY px (font height)
   fontFamily: StandardFontKey;
+  bold?: boolean; // recovered from the source font's name/flags
+  italic?: boolean;
   canvasWidth: number; // = displayWidth passed in
   canvasHeight: number; // = displayHeight passed in
   bgColor?: string; // sampled later from the canvas (not set here)
@@ -22,6 +24,35 @@ interface ItemRecord {
   fontPx: number; // font height (display px)
   widthPx: number; // advance width (display px)
   fontName: string | undefined;
+  bold: boolean;
+  italic: boolean;
+}
+
+/**
+ * Best-effort lookup of the translated pdf.js font object for an item's
+ * internal fontName id. The font lands in page.commonObjs once the page has
+ * been rendered (which the viewer does before edit mode is usable), and
+ * carries the real BaseFont name plus bold/italic/black flags parsed by
+ * pdf.js. Never throws — returns {} when the font isn't resolved yet.
+ */
+function lookupFontObject(
+  page: pdfjsLib.PDFPageProxy,
+  fontName: string | undefined
+): { name?: string; bold?: boolean; italic?: boolean } {
+  if (!fontName) return {};
+  try {
+    const commonObjs = (page as any).commonObjs;
+    if (!commonObjs?.has?.(fontName)) return {};
+    const font = commonObjs.get(fontName);
+    if (!font) return {};
+    return {
+      name: typeof font.name === 'string' ? font.name : undefined,
+      bold: !!(font.bold || font.black),
+      italic: !!font.italic,
+    };
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -65,7 +96,17 @@ export async function extractPageRuns(
     // Prefer the resolved family from styles; fall back to the raw fontName id.
     const resolvedFamily =
       (item.fontName && styles[item.fontName]?.fontFamily) || item.fontName;
-    records.push({ str, x, baselineY, fontPx, widthPx, fontName: resolvedFamily });
+    // Style: pdf.js's parsed flags (via the translated font object) are the
+    // primary source; the name-based heuristic catches fonts whose flags were
+    // not set but whose BaseFont/family name carries '-Bold'/'-Italic'.
+    const fontObj = lookupFontObject(page, item.fontName);
+    const nameStyle = detectFontStyle(fontObj.name || resolvedFamily);
+    records.push({
+      str, x, baselineY, fontPx, widthPx,
+      fontName: resolvedFamily, // classification still keyed off the styles family (v1.2)
+      bold: fontObj.bold || nameStyle.bold,
+      italic: fontObj.italic || nameStyle.italic,
+    });
   }
 
   // 2. Sort by baselineY ascending, then x ascending.
@@ -133,6 +174,8 @@ export async function extractPageRuns(
       },
       fontSize: maxFontPx,
       fontFamily: matchStandardFont(group[0].fontName),
+      bold: group[0].bold,
+      italic: group[0].italic,
       canvasWidth: displayWidth,
       canvasHeight: displayHeight,
     });

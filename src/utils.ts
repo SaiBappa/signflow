@@ -5,12 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Fonts available for text fields. `value` maps to a pdf-lib StandardFont on
-// export; `css` is used to render the same font in the browser preview.
+// Fonts available for text fields. `value` maps to an embedded Liberation
+// TTF (metric-compatible with the named family) on export via fontRegistry,
+// falling back to the pdf-lib StandardFont; `css` renders the SAME Liberation
+// face in the browser preview so screen and export match.
 export const TEXT_FONTS = [
-  { label: 'Sans-Serif', value: 'Helvetica', css: 'Arial, Helvetica, sans-serif' },
-  { label: 'Serif', value: 'Times', css: '"Times New Roman", Times, serif' },
-  { label: 'Monospace', value: 'Courier', css: '"Courier New", Courier, monospace' },
+  { label: 'Sans-Serif', value: 'Helvetica', css: '"Liberation Sans", Arial, Helvetica, sans-serif' },
+  { label: 'Serif', value: 'Times', css: '"Liberation Serif", "Times New Roman", Times, serif' },
+  { label: 'Monospace', value: 'Courier', css: '"Liberation Mono", "Courier New", Courier, monospace' },
   { label: 'Faruma', value: 'Faruma', css: 'Faruma, sans-serif' },
 ] as const;
 
@@ -18,6 +20,27 @@ export type TextFontValue = (typeof TEXT_FONTS)[number]['value'];
 
 export function fontCss(value?: string): string {
   return (TEXT_FONTS.find(f => f.value === value) || TEXT_FONTS[0]).css;
+}
+
+/** Canvas/ctx.font string for a text instance, including weight and style. */
+export function canvasFontString(fontSizePx: number, family?: string, bold?: boolean, italic?: boolean): string {
+  return `${italic ? 'italic ' : ''}${bold ? 'bold ' : ''}${fontSizePx}px ${fontCss(family)}`;
+}
+
+/**
+ * Ensures the @font-face faces used by the given text instances are loaded
+ * before they are drawn onto an export canvas (fillText won't wait for lazily
+ * loaded fonts and would silently render a fallback).
+ */
+export async function ensureTextFontsLoaded(
+  texts: Array<{ fontFamily?: string; bold?: boolean; italic?: boolean }>
+): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts?.load) return;
+  await Promise.all(
+    texts.map(t =>
+      document.fonts.load(canvasFontString(16, t.fontFamily, t.bold, t.italic)).catch(() => [])
+    )
+  );
 }
 
 // Advanced background removal with smooth alpha edge blending and adaptive thresholding

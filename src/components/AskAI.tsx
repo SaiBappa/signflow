@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { ToolLayout, ToolField, ToolInput } from './shared/ToolLayout';
 import { UploadDropzone } from './shared/UploadDropzone';
+import { generateContent, useServerKeyAvailable, isUsableKey, GEMINI_KEY_STORAGE } from '../services/geminiClient';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
@@ -15,9 +16,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
  * AskAI — "Ask AI" tool. Chat with a PDF and get instant summaries.
  *
  * Follows the app's established AI conventions (see Convert.tsx): Gemini 2.5
- * Flash via the generativelanguage REST API, key read from localStorage with a
- * VITE_GEMINI_API_KEY env fallback, and a graceful local fallback when no key
- * is present.
+ * Flash via the backend proxy (geminiClient), so the API key stays server-side.
+ * A user may bring their own key; a graceful local fallback covers no-key use.
  *
  * To keep multi-turn chat cheap and private, the document's text layer is
  * extracted once locally with pdf.js and sent as system context — the full PDF
@@ -184,18 +184,18 @@ export function AskAI({ initialFile = null }: { initialFile?: File | null } = {}
   const [error, setError] = useState('');
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
-  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('signflow_gemini_api_key') || '');
+  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem(GEMINI_KEY_STORAGE) || '');
   const [showKey, setShowKey] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    localStorage.setItem('signflow_gemini_api_key', apiKey);
+    localStorage.setItem(GEMINI_KEY_STORAGE, apiKey);
   }, [apiKey]);
 
-  const hasEnvKey = !!import.meta.env.VITE_GEMINI_API_KEY;
-  const activeKey = apiKey || import.meta.env.VITE_GEMINI_API_KEY || '';
-  const hasValidKey = !!activeKey && activeKey !== 'MY_GEMINI_API_KEY' && activeKey.trim() !== '';
+  // The server may hold the key (preferred). The user can also bring their own.
+  const hasServerKey = useServerKeyAvailable();
+  const hasValidKey = hasServerKey || isUsableKey(apiKey);
 
   // Auto-scroll the transcript as messages stream in.
   useEffect(() => {
@@ -260,29 +260,16 @@ export function AskAI({ initialFile = null }: { initialFile?: File | null } = {}
         (contents[0].parts as any[]).unshift({ inlineData: { mimeType: 'application/pdf', data: base64 } });
       }
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${activeKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemText }] },
-            contents,
-            generationConfig: { temperature: 0.3 },
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`AI service error: ${response.status} — ${errText}`);
-      }
-      const data = await response.json();
+      const data = await generateContent(GEMINI_MODEL, {
+        systemInstruction: { parts: [{ text: systemText }] },
+        contents,
+        generationConfig: { temperature: 0.3 },
+      });
       const text = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '';
       if (!text) throw new Error('Empty response from AI service.');
       return text;
     },
-    [activeKey, docText, isScanned, file],
+    [docText, isScanned, file],
   );
 
   const send = async (prompt: string) => {
@@ -329,7 +316,7 @@ export function AskAI({ initialFile = null }: { initialFile?: File | null } = {}
         </div>
       </div>
 
-      {hasEnvKey ? (
+      {hasServerKey ? (
         <span className="text-[10px] text-emerald-600 font-extrabold flex items-center gap-1">
           <Key className="w-3 h-3" /> AI ready
         </span>

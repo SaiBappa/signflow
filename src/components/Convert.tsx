@@ -1,39 +1,416 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import JSZip from 'jszip';
-import { downloadBlob } from '../utils';
+import { downloadBlob, cn } from '../utils';
 import * as XLSX from 'xlsx';
 import {
   FileText, FileSpreadsheet, Sparkles,
   AlertCircle, RefreshCw, Key,
-  ArrowRight, Loader2, Eye, EyeOff
+  ArrowRight, Loader2, Eye, EyeOff, X
 } from 'lucide-react';
 import { ToolLayout, ToolField, ToolInput } from './shared/ToolLayout';
 import { UploadDropzone } from './shared/UploadDropzone';
+import { extractPageRuns, ExtractedRun } from '../services/textExtraction';
+import { generateContent, useServerKeyAvailable, isUsableKey, hasUserGeminiKey, GEMINI_KEY_STORAGE } from '../services/geminiClient';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
+
+interface PdfPagePreviewProps {
+  pdfDoc: any;
+  pageNum: number;
+  useAi: boolean;
+  aiReady: boolean;
+  isProcessing: boolean;
+  setIsProcessing: (v: boolean) => void;
+  setStatus: (v: string) => void;
+}
+
+function PdfPagePreview({
+  pdfDoc,
+  pageNum,
+  useAi,
+  aiReady,
+  isProcessing,
+  setIsProcessing,
+  setStatus
+}: PdfPagePreviewProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [selection, setSelection] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [loadingPage, setLoadingPage] = useState(false);
+  const [exportingType, setExportingType] = useState<'excel' | 'word' | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const render = async () => {
+      if (!pdfDoc || !canvasRef.current) return;
+      setLoadingPage(true);
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        if (cancelled) return;
+        
+        const containerWidth = Math.min(960, window.innerWidth - 64);
+        const unscaledViewport = page.getViewport({ scale: 1 });
+        const scale = containerWidth / unscaledViewport.width;
+        const viewport = page.getViewport({ scale });
+        
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        setDimensions({ width: viewport.width, height: viewport.height });
+        
+        const context = canvas.getContext('2d');
+        if (context && !cancelled) {
+          await page.render({ canvasContext: context, viewport }).promise;
+        }
+      } catch (e) {
+        console.error("Error rendering preview page:", e);
+      } finally {
+        if (!cancelled) setLoadingPage(false);
+      }
+    };
+    render();
+    return () => {
+      cancelled = true;
+    };
+  }, [pdfDoc, pageNum]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (exportingType) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setStartPos({ x, y });
+    setSelection({ x, y, w: 0, h: 0 });
+    setIsDrawing(true);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDrawing || !selection || exportingType) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const currentX = e.clientX - rect.left;
+    const currentY = e.clientY - rect.top;
+    
+    const clampedX = Math.max(0, Math.min(currentX, dimensions.width));
+    const clampedY = Math.max(0, Math.min(currentY, dimensions.height));
+
+    const x = Math.min(startPos.x, clampedX);
+    const y = Math.min(startPos.y, clampedY);
+    const w = Math.abs(startPos.x - clampedX);
+    const h = Math.abs(startPos.y - clampedY);
+    
+    setSelection({ x, y, w, h });
+  };
+
+  const handleMouseUp = () => {
+    if (exportingType) return;
+    setIsDrawing(false);
+    if (selection && (selection.w < 10 || selection.h < 10)) {
+      setSelection(null);
+    }
+  };
+
+  const handleExportSelection = async (type: 'excel' | 'word') => {
+    if (!selection) return;
+    setExportingType(type);
+    setIsProcessing(true);
+    setStatus(`Extracting text runs for selection...`);
+
+    try {
+      const runs = await extractPageRuns(pdfDoc, pageNum, dimensions.width, dimensions.height);
+      const selectedRuns = runs.filter(run => {
+        const rx = run.pos.x;
+        const ry = run.pos.y;
+        const rw = run.pos.width;
+        const rh = run.pos.height;
+        
+        const sx = selection.x;
+        const sy = selection.y;
+        const sw = selection.w;
+        const sh = selection.h;
+        
+        return rx + rw >= sx && rx <= sx + sw && ry + rh >= sy && ry <= sy + sh;
+      });
+
+      if (selectedRuns.length === 0) {
+        alert("No text found in the selected area. Please try a different area.");
+        setIsProcessing(false);
+        setExportingType(null);
+        return;
+      }
+
+      const selectedRows: ExtractedRun[][] = [];
+      selectedRuns.forEach(run => {
+        let placed = false;
+        for (const row of selectedRows) {
+          const avgY = row.reduce((sum, r) => sum + r.pos.y, 0) / row.length;
+          if (Math.abs(run.pos.y - avgY) < 8) {
+            row.push(run);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          selectedRows.push([run]);
+        }
+      });
+
+      selectedRows.sort((a, b) => {
+        const avgYA = a.reduce((sum, r) => sum + r.pos.y, 0) / a.length;
+        const avgYB = b.reduce((sum, r) => sum + r.pos.y, 0) / b.length;
+        return avgYA - avgYB;
+      });
+
+      selectedRows.forEach(row => {
+        row.sort((a, b) => a.pos.x - b.pos.x);
+      });
+
+      if (useAi && aiReady) {
+        setStatus("Sending selected text to AI for structured layout formatting...");
+        const runsText = selectedRows.map((row, rIdx) => {
+          return `Row ${rIdx + 1}: ` + row.map(run => `[x:${Math.round(run.pos.x)}, text:"${run.text}"]`).join(', ');
+        }).join('\n');
+
+        const requestText = type === 'excel'
+          ? "Extract this tabular data. Provide the output in a JSON object with a single top-level key 'rows' containing an array of objects where each object is a key-value pair representing a row of the table. Column names should be descriptive. Ensure numbers and IDs are exact. Output ONLY the JSON."
+          : "Convert this selected layout data into a beautiful Word-compatible semantic HTML table. Style the table header with a gray background and borders. Output ONLY the HTML inside a JSON object: `{\"html\": \"...\"}`.";
+
+        const resData = await generateContent('gemini-2.5-flash', {
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Here is text extracted from a selected portion of a document page:\n\n${runsText}\n\n${requestText}`
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json"
+          }
+        });
+        const jsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!jsonText) throw new Error("Empty response from AI");
+
+        const parsed = JSON.parse(jsonText);
+
+        if (type === 'excel') {
+          setStatus("Generating Excel workbook...");
+          const wb = XLSX.utils.book_new();
+          const ws = XLSX.utils.json_to_sheet(parsed.rows || parsed.tables?.[0]?.rows || parsed || []);
+          XLSX.utils.book_append_sheet(wb, ws, "Selected Data");
+          
+          const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+          const buf = new ArrayBuffer(wbout.length);
+          const view = new Uint8Array(buf);
+          for (let i = 0; i < wbout.length; i++) view[i] = wbout.charCodeAt(i) & 0xFF;
+          downloadBlob(new Blob([buf], { type: "application/octet-stream" }), `selected_rows_page_${pageNum}.xlsx`);
+        } else {
+          setStatus("Generating Word document...");
+          const htmlContent = parsed.html || "";
+          const wordDocContent = `
+            <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+            <head>
+              <meta charset="utf-8">
+              <style>
+                body { font-family: 'Calibri', sans-serif; font-size: 11pt; margin: 1in; }
+                table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+                th { border: 1px solid #999; background-color: #f3f4f6; padding: 6px; font-weight: bold; text-align: left; }
+                td { border: 1px solid #ccc; padding: 6px; }
+              </style>
+            </head>
+            <body>
+              ${htmlContent}
+            </body>
+            </html>
+          `;
+          downloadBlob(new Blob(['\ufeff' + wordDocContent], { type: 'application/msword' }), `selected_rows_page_${pageNum}.doc`);
+        }
+        setStatus("Selected data exported successfully!");
+      } else {
+        setStatus("Exporting data using local coordinate heuristic...");
+        const aoa = selectedRows.map(row => {
+          const cells: string[] = [];
+          let currentCell = "";
+          let lastX = -999;
+          
+          row.forEach(item => {
+            const gap = item.pos.x - lastX;
+            if (lastX === -999 || gap < 25) {
+              if (lastX !== -999 && gap > 4) {
+                currentCell += " " + item.text;
+              } else {
+                currentCell += item.text;
+              }
+            } else {
+              cells.push(currentCell.trim());
+              currentCell = item.text;
+            }
+            lastX = item.pos.x + item.pos.width;
+          });
+          if (currentCell) {
+            cells.push(currentCell.trim());
+          }
+          return cells;
+        });
+
+        if (type === 'excel') {
+          const wb = XLSX.utils.book_new();
+          const ws = XLSX.utils.aoa_to_sheet(aoa);
+          XLSX.utils.book_append_sheet(wb, ws, "Selected Data");
+          
+          const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+          const buf = new ArrayBuffer(wbout.length);
+          const view = new Uint8Array(buf);
+          for (let i = 0; i < wbout.length; i++) view[i] = wbout.charCodeAt(i) & 0xFF;
+          downloadBlob(new Blob([buf], { type: "application/octet-stream" }), `selected_rows_page_${pageNum}_extracted.xlsx`);
+        } else {
+          const htmlContent = `
+            <table border="1" style="border-collapse: collapse; width: 100%;">
+              ${aoa.map(row => `<tr>${row.map(cell => `<td style="border: 1px solid #ccc; padding: 6px;">${cell}</td>`).join("")}</tr>`).join("")}
+            </table>
+          `;
+          const wordDocContent = `
+            <html>
+            <head><meta charset="utf-8"><style>body { font-family: sans-serif; font-size: 10pt; } td { padding: 6px; }</style></head>
+            <body>${htmlContent}</body>
+            </html>
+          `;
+          downloadBlob(new Blob(['\ufeff' + wordDocContent], { type: 'application/msword' }), `selected_rows_page_${pageNum}_extracted.doc`);
+        }
+        setStatus("Selected data exported successfully!");
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(`Error exporting selection: ${e.message || e}`);
+      setStatus("Export failed.");
+    } finally {
+      setIsProcessing(false);
+      setExportingType(null);
+      setSelection(null);
+    }
+  };
+
+  return (
+    <div className="relative mx-auto my-2 select-none">
+      {loadingPage && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10 rounded-xl">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        </div>
+      )}
+      
+      <div 
+        ref={containerRef} 
+        className="relative border border-slate-200/80 rounded-xl shadow-sm overflow-hidden bg-white cursor-crosshair"
+        style={{ width: dimensions.width || 'auto', height: dimensions.height || 'auto' }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+      >
+        <canvas ref={canvasRef} className="block max-w-full" />
+        
+        {selection && (
+          <div 
+            className="absolute border-2 border-dashed border-indigo-500 bg-indigo-500/10 pointer-events-none rounded"
+            style={{
+              left: selection.x,
+              top: selection.y,
+              width: selection.w,
+              height: selection.h
+            }}
+          />
+        )}
+
+        {selection && !isDrawing && selection.w > 15 && selection.h > 15 && (
+          <div 
+            className="absolute bg-white/95 backdrop-blur-md border border-slate-200 shadow-xl rounded-xl p-1.5 flex items-center gap-1 z-30 pointer-events-auto scale-in"
+            style={{
+              left: Math.min(dimensions.width - 170, Math.max(8, selection.x + selection.w/2 - 85)),
+              top: selection.y + selection.h + 10 > dimensions.height - 50 
+                ? Math.max(8, selection.y - 48) 
+                : selection.y + selection.h + 10
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => handleExportSelection('excel')}
+              disabled={isProcessing}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {exportingType === 'excel' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileSpreadsheet className="w-3.5 h-3.5" />}
+              Excel
+            </button>
+            <button
+              onClick={() => handleExportSelection('word')}
+              disabled={isProcessing}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {exportingType === 'word' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+              Word
+            </button>
+            <button
+              onClick={() => setSelection(null)}
+              disabled={isProcessing}
+              className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5 font-bold" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function Convert() {
   const [files, setFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState<string>('');
+  const [convertTab, setConvertTab] = useState<'entire' | 'selective'>('entire');
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
 
   // AI Settings
   const [useAi, setUseAi] = useState<boolean>(true);
   const [apiKey, setApiKey] = useState<string>(() => {
-    return localStorage.getItem('signflow_gemini_api_key') || '';
+    return localStorage.getItem(GEMINI_KEY_STORAGE) || '';
   });
   const [showKey, setShowKey] = useState<boolean>(false);
 
+  // The server may hold the key; the user can also bring their own.
+  const hasServerKey = useServerKeyAvailable();
+
   // Sync API Key to Local Storage
   useEffect(() => {
-    localStorage.setItem('signflow_gemini_api_key', apiKey);
+    localStorage.setItem(GEMINI_KEY_STORAGE, apiKey);
   }, [apiKey]);
 
-  const hasEnvKey = !!import.meta.env.VITE_GEMINI_API_KEY;
+  useEffect(() => {
+    const loadPdf = async () => {
+      if (files.length === 0 || files[0].type !== 'application/pdf') {
+        setPdfDoc(null);
+        setConvertTab('entire');
+        return;
+      }
+      try {
+        const arrayBuffer = await files[0].arrayBuffer();
+        const doc = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+        setPdfDoc(doc);
+      } catch (e) {
+        console.error("Error loading PDF for preview:", e);
+      }
+    };
+    loadPdf();
+  }, [files]);
 
   const convertImagesToPdf = async () => {
     if (files.length === 0) return;
@@ -131,10 +508,9 @@ export function Convert() {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const activeKey = apiKey || import.meta.env.VITE_GEMINI_API_KEY || "";
-      const hasValidKey = activeKey && activeKey !== "MY_GEMINI_API_KEY" && activeKey.trim() !== "";
+      const aiReady = hasServerKey || hasUserGeminiKey();
 
-      if (useAi && hasValidKey) {
+      if (useAi && aiReady) {
         setStatus("Encoding PDF bytes...");
         const binary = new Uint8Array(arrayBuffer);
         let binaryString = "";
@@ -150,43 +526,28 @@ export function Convert() {
 
         setStatus("Sending document for AI extraction...");
 
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              contents: [
+        const resData = await generateContent('gemini-2.5-flash', {
+          contents: [
+            {
+              parts: [
                 {
-                  parts: [
-                    {
-                      inlineData: {
-                        mimeType: "application/pdf",
-                        data: base64
-                      }
-                    },
-                    {
-                      text: "Extract all tabular and transactional data from this document. Provide the output in a JSON object with a single top-level key 'tables' containing an array of table objects. Each table object must have a 'name' (string, e.g. the section title or billing section name) and a 'rows' array of objects where each object is a key-value pair representing a row of the table. Column names should be descriptive (e.g. CoO, Tariff Number, Material Code, EAN/UPC, Material Description, UoM, Ship Qty, Unit Price, Amount, VAT). Ensure numeric values, currency values, codes, and IDs are extracted with 100% precision. Do not omit any rows or tables."
-                    }
-                  ]
+                  inlineData: {
+                    mimeType: "application/pdf",
+                    data: base64
+                  }
+                },
+                {
+                  text: "Extract all tabular and transactional data from this document. Provide the output in a JSON object with a single top-level key 'tables' containing an array of table objects. Each table object must have a 'name' (string, e.g. the section title or billing section name) and a 'rows' array of objects where each object is a key-value pair representing a row of the table. Column names should be descriptive (e.g. CoO, Tariff Number, Material Code, EAN/UPC, Material Description, UoM, Ship Qty, Unit Price, Amount, VAT). Ensure numeric values, currency values, codes, and IDs are extracted with 100% precision. Do not omit any rows or tables."
                 }
-              ],
-              generationConfig: {
-                responseMimeType: "application/json"
-              }
-            })
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json"
           }
-        );
-
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`AI service error: ${response.status} - ${errText}`);
-        }
+        });
 
         setStatus("Parsing extracted data from AI...");
-        const resData = await response.json();
         const jsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!jsonText) throw new Error("Empty response from AI service");
 
@@ -315,12 +676,11 @@ export function Convert() {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const activeKey = apiKey || import.meta.env.VITE_GEMINI_API_KEY || "";
-      const hasValidKey = activeKey && activeKey !== "MY_GEMINI_API_KEY" && activeKey.trim() !== "";
+      const aiReady = hasServerKey || hasUserGeminiKey();
 
       let htmlContent = "";
 
-      if (useAi && hasValidKey) {
+      if (useAi && aiReady) {
         setStatus("Encoding PDF bytes...");
         const binary = new Uint8Array(arrayBuffer);
         let binaryString = "";
@@ -336,43 +696,28 @@ export function Convert() {
 
         setStatus("Sending document for AI conversion...");
 
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              contents: [
+        const resData = await generateContent('gemini-2.5-flash', {
+          contents: [
+            {
+              parts: [
                 {
-                  parts: [
-                    {
-                      inlineData: {
-                        mimeType: "application/pdf",
-                        data: base64
-                      }
-                    },
-                    {
-                      text: "Convert this document into formatted Word-compatible semantic HTML. Preserve the layout structure, headings, lists, tables, bold text, alignments, and spacing. Include clean inline CSS for table borders, padding, and gray headers. Return ONLY the HTML code inside a JSON object: `{\"html\": \"...\"}`."
-                    }
-                  ]
+                  inlineData: {
+                    mimeType: "application/pdf",
+                    data: base64
+                  }
+                },
+                {
+                  text: "Convert this document into formatted Word-compatible semantic HTML. Preserve the layout structure, headings, lists, tables, bold text, alignments, and spacing. Include clean inline CSS for table borders, padding, and gray headers. Return ONLY the HTML code inside a JSON object: `{\"html\": \"...\"}`."
                 }
-              ],
-              generationConfig: {
-                responseMimeType: "application/json"
-              }
-            })
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json"
           }
-        );
-
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`AI service error: ${response.status} - ${errText}`);
-        }
+        });
 
         setStatus("Parsing Word document markup...");
-        const resData = await response.json();
         const jsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!jsonText) throw new Error("Empty response from AI service");
 
@@ -505,65 +850,11 @@ export function Convert() {
 
   const isPdf = files.length > 0 && files[0].type === 'application/pdf';
   const hasImages = files.length > 0 && files.some(f => f.type.startsWith('image/'));
-  const activeApiKey = apiKey || import.meta.env.VITE_GEMINI_API_KEY || "";
-  const hasValidKey = activeApiKey && activeApiKey !== "MY_GEMINI_API_KEY" && activeApiKey.trim() !== "";
+  const hasValidKey = hasServerKey || isUsableKey(apiKey);
   const isAiDisabled = useAi && !hasValidKey;
 
   /* ── Left functions panel: AI engine settings ── */
-  const panel = (
-    <>
-      <label className="flex items-start gap-2.5 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={useAi}
-          onChange={(e) => setUseAi(e.target.checked)}
-          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 mt-0.5"
-        />
-        <span className="min-w-0">
-          <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> AI Enhanced
-          </span>
-          <span className="text-[10px] text-slate-400 font-medium block mt-0.5 leading-snug">
-            High-accuracy layout &amp; table reconstruction for PDF→Excel / Word. Best for invoices &amp; purchase orders.
-          </span>
-        </span>
-      </label>
-
-      {useAi && (
-        hasEnvKey ? (
-          <span className="text-[10px] text-emerald-600 font-extrabold flex items-center gap-1 mt-1">
-            <Key className="w-3 h-3" /> AI extraction ready
-          </span>
-        ) : (
-          <ToolField label="API key" hint="Stored locally in your browser only.">
-            <div className="relative">
-              <ToolInput
-                type={showKey ? 'text' : 'password'}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Enter your API key…"
-                className="pr-10 font-mono"
-              />
-              <button
-                type="button"
-                onClick={() => setShowKey(!showKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-
-            {!apiKey && (
-              <div className="flex items-start gap-1.5 text-[10px] text-amber-600 bg-amber-50/50 p-2 rounded-lg border border-amber-100 mt-1.5">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" />
-                <span>No API key found. Falls back to local extraction.</span>
-              </div>
-            )}
-          </ToolField>
-        )
-      )}
-    </>
-  );
+  const panel = null;
 
   /* ── Main work area ── */
   const mainArea = files.length === 0 ? (
@@ -582,7 +873,7 @@ export function Convert() {
     />
   ) : (
     <div className="flex-1 p-4 md:p-8">
-      <div className="max-w-2xl mx-auto space-y-5">
+      <div className={cn("mx-auto space-y-5 transition-all duration-300", convertTab === 'selective' ? "max-w-5xl" : "max-w-2xl")}>
         {/* File summary */}
         <div className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3 mb-3">
@@ -590,7 +881,7 @@ export function Convert() {
               {files.length} file{files.length > 1 ? 's' : ''} selected
             </span>
             <button
-              onClick={() => { setFiles([]); setStatus(''); }}
+              onClick={() => { setFiles([]); setStatus(''); setConvertTab('entire'); }}
               className="text-slate-400 hover:text-rose-500 text-xs font-semibold cursor-pointer transition-colors"
             >
               Clear all
@@ -604,6 +895,34 @@ export function Convert() {
             ))}
           </div>
         </div>
+
+        {/* Tab Selector for PDF */}
+        {isPdf && (
+          <div className="grid grid-cols-2 gap-1 p-1 bg-slate-100/80 border border-slate-200/40 rounded-2xl text-xs font-bold text-slate-700 shadow-sm shrink-0">
+            <button
+              onClick={() => setConvertTab('entire')}
+              className={cn(
+                "py-2 rounded-xl text-center transition-all cursor-pointer",
+                convertTab === 'entire'
+                  ? "bg-white text-indigo-700 shadow-sm font-bold border border-slate-200/10"
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+            >
+              Convert Entire File
+            </button>
+            <button
+              onClick={() => setConvertTab('selective')}
+              className={cn(
+                "py-2 rounded-xl text-center transition-all cursor-pointer",
+                convertTab === 'selective'
+                  ? "bg-white text-indigo-700 shadow-sm font-bold border border-slate-200/10"
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+            >
+              Export Custom Selection
+            </button>
+          </div>
+        )}
 
         {/* Processing indicator */}
         {isProcessing && (
@@ -622,8 +941,8 @@ export function Convert() {
           </div>
         )}
 
-        {/* Conversion action cards */}
-        {!isProcessing && (
+        {/* Conversion action cards (Entire file tab) */}
+        {!isProcessing && convertTab === 'entire' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {isPdf && (
               <>
@@ -701,6 +1020,40 @@ export function Convert() {
                 <ArrowRight className="w-4 h-4 text-indigo-500/70 group-hover:translate-x-0.5 transition-transform" />
               </button>
             )}
+          </div>
+        )}
+
+        {/* Custom selection workspace (Selective tab) */}
+        {!isProcessing && convertTab === 'selective' && isPdf && pdfDoc && (
+          <div className="space-y-4">
+            <div className="bg-amber-50/70 border border-amber-100/60 p-3.5 rounded-2xl flex items-start gap-2.5 shadow-sm">
+              <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-left">
+                <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider block">Custom Area Selection</span>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed mt-0.5 font-sans">
+                  Scroll and <strong>drag a box</strong> over any table or rows on the pages below. Use the floating menu to instantly export that specific area to Excel or Word.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-6 max-h-[600px] overflow-y-auto px-1.5 py-1 border border-slate-200/60 bg-slate-50/50 rounded-2xl shadow-inner scrollbar-thin">
+              {Array.from({ length: pdfDoc.numPages }, (_, idx) => (
+                <div key={idx + 1} className="relative bg-white p-3 rounded-2xl border border-slate-200/50 shadow-sm max-w-fit mx-auto my-4">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-1 flex justify-between">
+                    <span>Page {idx + 1} of {pdfDoc.numPages}</span>
+                  </div>
+                  <PdfPagePreview 
+                    pdfDoc={pdfDoc}
+                    pageNum={idx + 1}
+                    useAi={useAi}
+                    aiReady={hasValidKey}
+                    isProcessing={isProcessing}
+                    setIsProcessing={setIsProcessing}
+                    setStatus={setStatus}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

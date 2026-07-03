@@ -122,7 +122,7 @@ export function TextOverlay({
             }
           }}
           className="w-full h-full bg-transparent resize-none overflow-hidden outline-none break-words leading-tight"
-          style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily) }}
+          style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily), fontWeight: text.bold ? 'bold' : undefined, fontStyle: text.italic ? 'italic' : undefined }}
           spellCheck={false}
         />
       ) : (
@@ -133,7 +133,7 @@ export function TextOverlay({
           }}
           className="w-full h-full overflow-hidden select-none flex items-center"
         >
-          <p className="w-full whitespace-pre-wrap break-words leading-tight pointer-events-none" dir={isDhivehiFont(text.fontFamily) ? 'rtl' : 'ltr'} style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily) }}>
+          <p className="w-full whitespace-pre-wrap break-words leading-tight pointer-events-none" dir={isDhivehiFont(text.fontFamily) ? 'rtl' : 'ltr'} style={{ fontSize: `${text.fontSize}px`, color: text.color, fontFamily: fontCss(text.fontFamily), fontWeight: text.bold ? 'bold' : undefined, fontStyle: text.italic ? 'italic' : undefined }}>
             {text.text}
           </p>
         </div>
@@ -159,6 +159,27 @@ export function TextOverlay({
              <option key={f.value} value={f.value} style={{ fontFamily: f.css }}>{f.label}</option>
            ))}
          </select>
+         <div className="w-[1px] h-5 bg-slate-200"></div>
+         <button
+           onClick={(e) => {
+             e.stopPropagation();
+             onUpdate(text.id, { bold: !text.bold });
+           }}
+           className={`w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-md text-sm font-bold cursor-pointer shrink-0 ${text.bold ? 'text-indigo-600 bg-indigo-50' : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50'}`}
+           title="Bold"
+         >
+           B
+         </button>
+         <button
+           onClick={(e) => {
+             e.stopPropagation();
+             onUpdate(text.id, { italic: !text.italic });
+           }}
+           className={`w-9 h-9 md:w-7 md:h-7 flex items-center justify-center rounded-md text-sm italic font-serif cursor-pointer shrink-0 ${text.italic ? 'text-indigo-600 bg-indigo-50' : 'text-slate-600 hover:text-indigo-600 hover:bg-indigo-50'}`}
+           title="Italic"
+         >
+           I
+         </button>
          <div className="w-[1px] h-5 bg-slate-200"></div>
          <button
            onClick={(e) => {

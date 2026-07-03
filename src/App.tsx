@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useIsMobile } from './hooks/useIsMobile';
-import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib';
+import { PDFDocument, rgb, degrees } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -16,7 +16,8 @@ import { SignatureImageEditor } from './components/SignatureImageEditor';
 import { fileToDataUrl, dataUrlToFile, makeThumbnail } from './utils/templateMedia';
 import { FileImage, FileSignature, Settings, Image as ImageIcon, FilePen, LayoutGrid, FileArchive, RefreshCw, Upload, PenTool, SlidersHorizontal, RotateCcw, RotateCw, Trash2, MoreVertical, MoreHorizontal, Download, ShieldCheck, Stamp, RectangleHorizontal, Type, Pen, Plus, X, ChevronDown, CheckSquare, Circle, AlignLeft, Sparkles, History, Scissors, Droplet, Hash, Lock, ScanText, Combine, LayoutTemplate, Eraser, MessageSquare, Highlighter, Minus, ArrowUpRight, Square, Pencil, FormInput, GitCompareArrows } from 'lucide-react';
 import { getDefaultStamps } from './utils/defaultStamps';
-import { removeImageBackground, enhanceSignature, rotateImage, downloadBlob, isPageInRange, TEXT_FONTS, cn } from './utils';
+import { removeImageBackground, enhanceSignature, rotateImage, downloadBlob, isPageInRange, TEXT_FONTS, cn, canvasFontString, ensureTextFontsLoaded } from './utils';
+import { embedTextFonts, fontSpecKey } from './services/fontRegistry';
 import { Organize } from './components/Organize';
 import { Compress } from './components/Compress';
 import { Convert } from './components/Convert';
@@ -621,6 +622,8 @@ export default function App() {
       fontSize: run.fontSize,
       color: run.textColor || '#000000',
       fontFamily: run.fontFamily,
+      bold: run.bold,
+      italic: run.italic,
       canvasWidth: run.canvasWidth,
       canvasHeight: run.canvasHeight,
     }]);
@@ -680,12 +683,13 @@ export default function App() {
         }
 
         const pages = pdfDoc.getPages();
-        // Embed each selectable text font once, keyed by its TEXT_FONTS value.
-        const textFonts: Record<string, any> = {
-          Helvetica: await pdfDoc.embedFont(StandardFonts.Helvetica),
-          Times: await pdfDoc.embedFont(StandardFonts.TimesRoman),
-          Courier: await pdfDoc.embedFont(StandardFonts.Courier),
-        };
+        // Embed each (family, bold, italic) combination in use once, keyed by
+        // fontSpecKey. Bundled Liberation/Faruma TTFs give real weight/style
+        // and Unicode coverage; Standard-14 remains the per-font fallback.
+        const textFonts = await embedTextFonts(pdfDoc, [
+          ...texts.map(t => ({ family: t.fontFamily, bold: t.bold, italic: t.italic })),
+          ...formFields.map(f => ({ family: f.fontFamily })),
+        ]);
 
         // Load document into pdfjs to get exact viewports for mapping
         const pdfjsDoc = await pdfjsLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
@@ -806,7 +810,7 @@ export default function App() {
             const g = parseInt(hex.substring(2,4), 16) / 255 || 0;
             const b = parseInt(hex.substring(4,6), 16) / 255 || 0;
             const fontSize = text.fontSize * scaleY;
-            const textFont = textFonts[text.fontFamily || 'Helvetica'] || textFonts.Helvetica;
+            const textFont = textFonts[fontSpecKey(text.fontFamily, text.bold, text.italic)] || textFonts[fontSpecKey()];
             const lines = text.text.split('\n');
             const lineHeight = fontSize * 1.2;
             for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
@@ -836,7 +840,7 @@ export default function App() {
               const boxPt = viewport.convertToPdfPoint(pdfVisX + fieldH * 0.15, pdfVisY + fieldH * 0.15);
               page.drawRectangle({ x: boxPt[0], y: boxPt[1] - boxSize, width: boxSize, height: boxSize, borderColor: rgb(fc.r, fc.g, fc.b), borderWidth: 1.5, color: rgb(1, 1, 1), rotate: degrees(-rotation) });
               if (field.checked) {
-                const textFont2 = textFonts.Helvetica;
+                const textFont2 = textFonts[fontSpecKey()];
                 page.drawText('X', { x: boxPt[0] + boxSize * 0.2, y: boxPt[1] - boxSize * 0.8, size: boxSize * 0.7, font: textFont2, color: rgb(fc.r, fc.g, fc.b), rotate: degrees(-rotation) });
               }
             } else if (field.type === 'radio') {
@@ -853,7 +857,7 @@ export default function App() {
               const bottomRight = viewport.convertToPdfPoint(pdfVisX + fieldW, pdfVisY + fieldH);
               page.drawRectangle({ x: topLeft[0], y: bottomRight[1], width: bottomRight[0] - topLeft[0], height: topLeft[1] - bottomRight[1], borderColor: rgb(0.7, 0.7, 0.7), borderWidth: 1, rotate: degrees(-rotation) });
               if (field.text) {
-                const textFontForField = textFonts[field.fontFamily || 'Helvetica'] || textFonts.Helvetica;
+                const textFontForField = textFonts[fontSpecKey(field.fontFamily)] || textFonts[fontSpecKey()];
                 const fSize = (field.fontSize || 14) * scaleY;
                 const fieldLines = field.text.split('\n');
                 const lineH = fSize * 1.3;
@@ -868,7 +872,7 @@ export default function App() {
               const hexToRgb = (hex: string) => { const h = hex.replace('#', ''); return { r: parseInt(h.slice(0, 2), 16) / 255, g: parseInt(h.slice(2, 4), 16) / 255, b: parseInt(h.slice(4, 6), 16) / 255 }; };
               const fc = hexToRgb(field.color || '#000000');
               const commentFontSize = 8 * scaleY;
-              const commentFont = textFonts.Helvetica;
+              const commentFont = textFonts[fontSpecKey()];
               const estWidth = field.comment.length * commentFontSize * 0.5;
               const startX = pdfVisX + (fieldW - estWidth) / 2;
               const startY = pdfVisY + fieldH + 6 * scaleY;
@@ -899,7 +903,7 @@ export default function App() {
             const el = document.getElementById(`document-canvas-content-${c.pageIndex}`) || pageEl;
             const cw = c.canvasWidth || el.clientWidth;
             const ch = c.canvasHeight || el.clientHeight;
-            drawCommentToPdf(page, c, viewport, cw, ch, rotation, rgb, degrees, textFonts.Helvetica);
+            drawCommentToPdf(page, c, viewport, cw, ch, rotation, rgb, degrees, textFonts[fontSpecKey()]);
           });
         }
 
@@ -993,6 +997,7 @@ export default function App() {
         }
 
         // Draw Text annotations
+        await ensureTextFontsLoaded(texts.filter(t => t.pageIndex === 1));
         texts.forEach(text => {
           if (text.pageIndex !== 1) return;
           const cw = text.canvasWidth || displayWidth;
@@ -1001,7 +1006,7 @@ export default function App() {
           const drawY = (text.pos.y / ch) * img.height;
           const fontSize = text.fontSize * (img.height / ch);
           ctx.save();
-          ctx.font = `${fontSize}px ${text.fontFamily === 'Times' ? 'Times New Roman' : text.fontFamily === 'Courier' ? 'Courier New' : text.fontFamily === 'Faruma' ? 'Faruma, MV Boli' : 'Helvetica, Arial, sans-serif'}`;
+          ctx.font = canvasFontString(fontSize, text.fontFamily, text.bold, text.italic);
           ctx.fillStyle = text.color;
           ctx.textBaseline = 'top';
           const lines = text.text.split('\n');
@@ -1217,6 +1222,7 @@ export default function App() {
       }
 
       // Draw texts
+      await ensureTextFontsLoaded(texts.filter(t => t.pageIndex === currentPageNum));
       texts.forEach(text => {
         if (text.pageIndex !== currentPageNum) return;
         const cw = text.canvasWidth || displayWidth;
@@ -1225,7 +1231,7 @@ export default function App() {
         const drawY = (text.pos.y / ch) * viewport.height;
         const fontSize = text.fontSize * (viewport.height / ch);
         ctx.save();
-        ctx.font = `${fontSize}px ${text.fontFamily === 'Times' ? 'Times New Roman' : text.fontFamily === 'Courier' ? 'Courier New' : text.fontFamily === 'Faruma' ? 'Faruma, MV Boli' : 'Helvetica, Arial, sans-serif'}`;
+        ctx.font = canvasFontString(fontSize, text.fontFamily, text.bold, text.italic);
         ctx.fillStyle = text.color;
         ctx.textBaseline = 'top';
         const lines = text.text.split('\n');
@@ -2142,11 +2148,11 @@ export default function App() {
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Tool</span>
                               <div className="grid grid-cols-3 gap-1.5">
                                 {DRAW_SHAPES.map(s => {
-                                  const Icon = s.id === 'freehand' ? Pencil : s.id === 'rectangle' ? Square : s.id === 'ellipse' ? Circle : s.id === 'line' ? Minus : s.id === 'arrow' ? ArrowUpRight : Highlighter;
+                                  const Icon = s.id === 'freehand' ? Pencil : s.id === 'rectangle' ? Square : s.id === 'ellipse' ? Circle : s.id === 'line' ? Minus : s.id === 'arrow' ? ArrowUpRight : s.id === 'redact' ? RectangleHorizontal : Highlighter;
                                   const isActive = drawMode && drawShape === s.id;
                                   return (
                                     <button key={s.id}
-                                      onClick={() => { setDrawShape(s.id); if (s.id === 'highlight' && drawOpacity === 1) setDrawOpacity(0.4); setDrawMode(true); setStampPlacementMode(false); setRedactPlacementMode(false); setTextPlacementMode(false); setFormFieldPlacementMode(false); setCommentPlacementMode(false); }}
+                                      onClick={() => { setDrawShape(s.id); if (s.id === 'highlight' && drawOpacity === 1) setDrawOpacity(0.4); if (s.id === 'redact' && drawOpacity !== 1) setDrawOpacity(1); setDrawMode(true); setStampPlacementMode(false); setRedactPlacementMode(false); setTextPlacementMode(false); setFormFieldPlacementMode(false); setCommentPlacementMode(false); }}
                                       className={cn("flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border text-[10px] font-bold transition-all cursor-pointer",
                                         isActive ? "bg-indigo-600 text-white border-indigo-600 shadow" : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600")}
                                       title={s.label}>
@@ -2166,7 +2172,7 @@ export default function App() {
                                 <input type="color" value={drawColor} onChange={(e) => setDrawColor(e.target.value)} className="w-7 h-7 rounded-full border border-slate-200 cursor-pointer p-0.5" title="Custom colour" />
                               </div>
                             </div>
-                            {drawShape !== 'highlight' && (
+                            {drawShape !== 'highlight' && drawShape !== 'redact' && (
                               <div className="space-y-2">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Stroke Width — {drawStrokeWidth}px</span>
                                 <input type="range" min={1} max={12} value={drawStrokeWidth} onChange={(e) => setDrawStrokeWidth(parseInt(e.target.value, 10))} className="w-full cursor-pointer" />
@@ -2588,11 +2594,11 @@ export default function App() {
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Tool</span>
                           <div className="grid grid-cols-3 gap-1.5">
                             {DRAW_SHAPES.map(s => {
-                              const Icon = s.id === 'freehand' ? Pencil : s.id === 'rectangle' ? Square : s.id === 'ellipse' ? Circle : s.id === 'line' ? Minus : s.id === 'arrow' ? ArrowUpRight : Highlighter;
+                              const Icon = s.id === 'freehand' ? Pencil : s.id === 'rectangle' ? Square : s.id === 'ellipse' ? Circle : s.id === 'line' ? Minus : s.id === 'arrow' ? ArrowUpRight : s.id === 'redact' ? RectangleHorizontal : Highlighter;
                               const isActive = drawShape === s.id;
                               return (
                                 <button key={s.id}
-                                  onClick={() => { setDrawShape(s.id); if (s.id === 'highlight' && drawOpacity === 1) setDrawOpacity(0.4); }}
+                                  onClick={() => { setDrawShape(s.id); if (s.id === 'highlight' && drawOpacity === 1) setDrawOpacity(0.4); if (s.id === 'redact' && drawOpacity !== 1) setDrawOpacity(1); }}
                                   className={cn("flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl border text-[10px] font-bold transition-all active:scale-95",
                                     isActive ? "bg-indigo-600 text-white border-indigo-600 shadow" : "bg-white text-slate-500 border-slate-200")}
                                   title={s.label}>
@@ -2612,7 +2618,7 @@ export default function App() {
                             <input type="color" value={drawColor} onChange={(e) => setDrawColor(e.target.value)} className="w-9 h-9 rounded-full border border-slate-200 cursor-pointer p-0.5" title="Custom colour" />
                           </div>
                         </div>
-                        {drawShape !== 'highlight' && (
+                        {drawShape !== 'highlight' && drawShape !== 'redact' && (
                           <div className="space-y-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Stroke Width — {drawStrokeWidth}px</span>
                             <input type="range" min={1} max={12} value={drawStrokeWidth} onChange={(e) => setDrawStrokeWidth(parseInt(e.target.value, 10))} className="w-full cursor-pointer" />
