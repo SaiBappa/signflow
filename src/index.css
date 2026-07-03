@@ -1,9 +1,274 @@
 @import "tailwindcss";
 
+/* ============================================================================
+ * Type system
+ * Inter drives the entire UI; Sora is reserved for display headings / wordmark.
+ * Faruma renders Dhivehi text in placed annotations and the PDF export preview.
+ * ========================================================================== */
+@font-face {
+  font-family: 'Faruma';
+  src: url('/fonts/Faruma.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * Liberation fonts back the placed-text annotations so the browser preview
+ * matches the PDF export exactly: the same TTFs are embedded via fontkit at
+ * export time. Metric-compatible with Arial/Helvetica, Times, Courier.
+ */
+@font-face { font-family: 'Liberation Sans'; src: url('/fonts/liberation/LiberationSans-Regular.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Liberation Sans'; src: url('/fonts/liberation/LiberationSans-Bold.ttf') format('truetype'); font-weight: bold; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Liberation Sans'; src: url('/fonts/liberation/LiberationSans-Italic.ttf') format('truetype'); font-weight: normal; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Liberation Sans'; src: url('/fonts/liberation/LiberationSans-BoldItalic.ttf') format('truetype'); font-weight: bold; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Liberation Serif'; src: url('/fonts/liberation/LiberationSerif-Regular.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Liberation Serif'; src: url('/fonts/liberation/LiberationSerif-Bold.ttf') format('truetype'); font-weight: bold; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Liberation Serif'; src: url('/fonts/liberation/LiberationSerif-Italic.ttf') format('truetype'); font-weight: normal; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Liberation Serif'; src: url('/fonts/liberation/LiberationSerif-BoldItalic.ttf') format('truetype'); font-weight: bold; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Liberation Mono'; src: url('/fonts/liberation/LiberationMono-Regular.ttf') format('truetype'); font-weight: normal; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Liberation Mono'; src: url('/fonts/liberation/LiberationMono-Bold.ttf') format('truetype'); font-weight: bold; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Liberation Mono'; src: url('/fonts/liberation/LiberationMono-Italic.ttf') format('truetype'); font-weight: normal; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Liberation Mono'; src: url('/fonts/liberation/LiberationMono-BoldItalic.ttf') format('truetype'); font-weight: bold; font-style: italic; font-display: swap; }
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Sora', 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand-tuned easing + shadow tokens reused across components. */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px -8px rgba(15, 23, 42, 0.08);
+  --shadow-float: 0 20px 50px -20px rgba(79, 70, 229, 0.18);
+}
+
+/* ============================================================================
+ * Base layer — global typographic polish + ambient app background
+ * ========================================================================== */
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Inter stylistic sets: tabular-friendly, single-storey a, rounded quotes. */
+    font-feature-settings: 'cv11', 'ss01', 'cv02', 'cv03', 'cv04';
+    letter-spacing: -0.011em;
+  }
+
+  /* Headings sit a touch tighter for an editorial, intentional feel. */
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
+  }
+
+  /* Consistent, calm focus ring across every interactive element. */
+  :focus-visible {
+    outline: 2px solid rgba(99, 102, 241, 0.55);
+    outline-offset: 2px;
+    border-radius: 0.35rem;
+  }
+
+  /* Branded text selection. */
+  ::selection {
+    background-color: rgba(99, 102, 241, 0.22);
+    color: #312e81;
+  }
+}
+
+/* ============================================================================
+ * Custom scrollbars — slim, unobtrusive, brand-tinted on hover.
+ * ========================================================================== */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.4);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.2s ease;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(99, 102, 241, 0.55);
+  }
+}
+
+/* ============================================================================
+ * Premium range slider — applied via the `range-premium` class (RangeRow).
+ * ========================================================================== */
+.range-premium {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #6366f1, #8b5cf6) no-repeat,
+    #e2e8f0;
+  background-size: var(--range-fill, 50%) 100%;
+  cursor: pointer;
+}
+.range-premium::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid #6366f1;
+  box-shadow: 0 1px 4px rgba(79, 70, 229, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.range-premium::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.5);
+}
+.range-premium::-webkit-slider-thumb:active {
+  transform: scale(1.05);
+}
+.range-premium::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid #6366f1;
+  box-shadow: 0 1px 4px rgba(79, 70, 229, 0.4);
+  cursor: pointer;
+}
+
+/* ============================================================================
+ * Ambient surfaces — soft aurora mesh for empty work areas.
+ * ========================================================================== */
+.surface-aurora {
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(ellipse 60% 50% at 12% 0%, rgba(99, 102, 241, 0.10), transparent 60%),
+    radial-gradient(ellipse 50% 50% at 100% 18%, rgba(139, 92, 246, 0.10), transparent 55%),
+    radial-gradient(ellipse 70% 60% at 50% 110%, rgba(99, 102, 241, 0.07), transparent 60%);
+}
+
+/* Glassy card edge highlight — a hairline of light along the top. */
+.edge-highlight {
+  position: relative;
+}
+.edge-highlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ============================================================================
+ * Animations — smoother, brand-consistent micro-interactions.
+ * ========================================================================== */
+@keyframes placement-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.6), 0 0 0 0 rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 18px rgba(99, 102, 241, 0), 0 0 0 36px rgba(139, 92, 246, 0);
+  }
+}
+
+@keyframes placement-ring-fade {
+  0% { opacity: 0; transform: scale(0.85); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes float-up {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.placement-pulse-ring {
+  animation: placement-pulse 1.8s ease-in-out infinite;
+}
+
+.placement-enter {
+  animation: placement-ring-fade 0.3s ease-out forwards;
+}
+
+.float-up {
+  animation: float-up 0.4s ease-out forwards;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(99, 102, 241, 0);
+  }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes aurora-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2%, -2%, 0) scale(1.05); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out forwards;
+}
+.animate-scale-in {
+  animation: scale-in 0.3s var(--ease-spring) forwards;
+}
+
+/* Shimmering skeleton/loading surfaces. */
+.shimmer {
+  background: linear-gradient(
+    100deg,
+    rgba(226, 232, 240, 0.4) 30%,
+    rgba(241, 245, 249, 0.9) 50%,
+    rgba(226, 232, 240, 0.4) 70%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* Honour reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -70,5 +335,8 @@
   .px-safe {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+  }
+  .font-display {
+    font-family: var(--font-display);
   }
 }

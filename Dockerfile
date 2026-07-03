@@ -10,15 +10,21 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: Serve ──────────────────────────────────────────────────────────
-FROM nginx:alpine AS production
+# The app now has a backend (Gemini proxy), so we run Node instead of nginx.
+FROM node:22-alpine AS production
 
-# Remove default nginx config and replace with SPA-friendly one
-RUN rm /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
+ENV NODE_ENV=production
 
-# Copy built assets from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Production deps only (express, dotenv).
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+# Built SPA + server.
+COPY --from=builder /app/dist ./dist
+COPY server ./server
 
 EXPOSE 8080
 
-CMD ["nginx", "-g", "daemon off;"]
+# GEMINI_API_KEY must be provided at runtime (e.g. Cloud Run secret), never baked in.
+CMD ["node", "server/index.mjs"]

@@ -1,0 +1,21 @@
+@media print {
+  /* Hide everything except the document viewer */
+  body * {
+    visibility: hidden;
+  }
+  #document-canvas-container,
+  #document-canvas-container * {
+    visibility: visible;
+  }
+  #document-canvas-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  /* Remove shadows and borders for cleaner printing */
+  .print-clean {
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
