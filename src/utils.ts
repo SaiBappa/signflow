@@ -48,9 +48,6 @@ export function removeImageBackground(
   imageUrl: string,
   tolerance: number,
   tintColor?: string, // hex color like "#000000"
-<<<<<<< HEAD
-  bgRemovalMode: 'white' | 'black' | 'auto' = 'white'
-=======
   bgRemovalMode: 'white' | 'black' | 'auto' = 'auto'
 ): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -264,7 +261,6 @@ export function removeImageBackground(
 export function enhanceSignature(
   imageUrl: string,
   strength: number = 50 // 0–100
->>>>>>> feat/prepare-form
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -282,67 +278,11 @@ export function enhanceSignature(
       
       const factor = strength / 100;
       
-<<<<<<< HEAD
-      // Determine the background color to remove
-      let bgR = 255;
-      let bgG = 255;
-      let bgB = 255;
-      
-      if (bgRemovalMode === 'black') {
-        bgR = 0;
-        bgG = 0;
-        bgB = 0;
-      } else if (bgRemovalMode === 'auto') {
-        // Sample edge pixels (four corners)
-        const corners = [
-          [0, 0],
-          [canvas.width - 1, 0],
-          [0, canvas.height - 1],
-          [canvas.width - 1, canvas.height - 1]
-        ];
-        let sumR = 0, sumG = 0, sumB = 0;
-        let sampleCount = 0;
-        corners.forEach(([cx, cy]) => {
-          if (cx >= 0 && cx < canvas.width && cy >= 0 && cy < canvas.height) {
-            const idx = (cy * canvas.width + cx) * 4;
-            sumR += data[idx];
-            sumG += data[idx + 1];
-            sumB += data[idx + 2];
-            sampleCount++;
-          }
-        });
-        if (sampleCount > 0) {
-          bgR = Math.round(sumR / sampleCount);
-          bgG = Math.round(sumG / sampleCount);
-          bgB = Math.round(sumB / sampleCount);
-        }
-      }
-      
-=======
       // --- Pass 1: Contrast boost + ink darkening ---
->>>>>>> feat/prepare-form
       for (let i = 0; i < data.length; i += 4) {
         const a = data[i + 3];
         if (a === 0) continue; // skip fully transparent
         
-<<<<<<< HEAD
-        // Euclidean distance from the background color
-        const dist = Math.sqrt(
-          Math.pow(bgR - r, 2) + Math.pow(bgG - g, 2) + Math.pow(bgB - b, 2)
-        );
-        
-        // If color is close enough to background, make it transparent
-        if (dist < tolerance) {
-          data[i + 3] = 0; 
-        } else if (targetR !== -1 && a > 0) {
-          // If a target color is specified, we tint the pixel.
-          // For signatures (black/dark on white), we want to preserve the alpha/anti-aliasing, 
-          // and apply the target color. 
-          // To keep it simple, we just set the color to the target color.
-          data[i] = targetR;
-          data[i + 1] = targetG;
-          data[i + 2] = targetB;
-=======
         let r = data[i];
         let g = data[i + 1];
         let b = data[i + 2];
@@ -363,7 +303,6 @@ export function enhanceSignature(
           r = Math.max(0, Math.round(r * darkenFactor));
           g = Math.max(0, Math.round(g * darkenFactor));
           b = Math.max(0, Math.round(b * darkenFactor));
->>>>>>> feat/prepare-form
         }
         
         // Boost alpha on semi-transparent stroke edges to make them crisper

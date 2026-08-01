@@ -53,8 +53,6 @@ if (!globalThis.crypto?.randomUUID) {
   });
 }
 
-<<<<<<< HEAD
-=======
 // --- matchMedia mock ---
 // jsdom does not implement matchMedia; useIsMobile() relies on it.
 if (typeof window.matchMedia !== 'function') {
@@ -70,7 +68,6 @@ if (typeof window.matchMedia !== 'function') {
   })) as any;
 }
 
->>>>>>> feat/prepare-form
 // --- ResizeObserver mock ---
 class MockResizeObserver {
   observe = vi.fn();

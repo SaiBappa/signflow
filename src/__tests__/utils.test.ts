@@ -36,15 +36,6 @@ describe('cn (className utility)', () => {
 // TEXT_FONTS constant
 // ---------------------------------------------------------------------------
 describe('TEXT_FONTS', () => {
-<<<<<<< HEAD
-  it('should have exactly 3 font entries', () => {
-    expect(TEXT_FONTS).toHaveLength(3);
-  });
-
-  it('should include Sans, Serif, and Mono labels', () => {
-    const labels = TEXT_FONTS.map(f => f.label);
-    expect(labels).toEqual(['Sans', 'Serif', 'Mono']);
-=======
   it('should have exactly 4 font entries', () => {
     expect(TEXT_FONTS).toHaveLength(4);
   });
@@ -52,12 +43,11 @@ describe('TEXT_FONTS', () => {
   it('should include expected font labels', () => {
     const labels = TEXT_FONTS.map(f => f.label);
     expect(labels).toEqual([
-      'Sans-Serif (Arial)',
-      'Serif (Times)',
-      'Monospace (Courier)',
-      'Faruma (Dhivehi)',
+      'Sans-Serif',
+      'Serif',
+      'Monospace',
+      'Faruma',
     ]);
->>>>>>> feat/prepare-form
   });
 
   it('each entry should have label, value, and css properties', () => {
@@ -71,13 +61,8 @@ describe('TEXT_FONTS', () => {
     }
   });
 
-<<<<<<< HEAD
-  it('should map to valid pdf-lib StandardFont names', () => {
-    const validNames = ['Helvetica', 'Times', 'Courier'];
-=======
   it('should map to valid font value names', () => {
     const validNames = ['Helvetica', 'Times', 'Courier', 'Faruma'];
->>>>>>> feat/prepare-form
     TEXT_FONTS.forEach(f => {
       expect(validNames).toContain(f.value);
     });
@@ -89,17 +74,6 @@ describe('TEXT_FONTS', () => {
 // ---------------------------------------------------------------------------
 describe('fontCss', () => {
   it('should return correct CSS for Helvetica', () => {
-<<<<<<< HEAD
-    expect(fontCss('Helvetica')).toBe('Helvetica, Arial, sans-serif');
-  });
-
-  it('should return correct CSS for Times', () => {
-    expect(fontCss('Times')).toBe('"Times New Roman", Times, serif');
-  });
-
-  it('should return correct CSS for Courier', () => {
-    expect(fontCss('Courier')).toBe('"Courier New", Courier, monospace');
-=======
     expect(fontCss('Helvetica')).toBe('"Liberation Sans", Arial, Helvetica, sans-serif');
   });
 
@@ -109,7 +83,6 @@ describe('fontCss', () => {
 
   it('should return correct CSS for Courier', () => {
     expect(fontCss('Courier')).toBe('"Liberation Mono", "Courier New", Courier, monospace');
->>>>>>> feat/prepare-form
   });
 
   it('should fall back to Sans (Helvetica) for undefined value', () => {

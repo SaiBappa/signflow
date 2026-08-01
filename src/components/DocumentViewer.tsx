@@ -1,9 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Rnd } from 'react-rnd';
-<<<<<<< HEAD
-import { ChevronLeft, ChevronRight, RotateCw, ShieldCheck, MapPin, CheckCircle, RefreshCw, X } from 'lucide-react';
-import { DocumentFile, SignatureState, TextInstance } from '../types';
-=======
 import { ChevronLeft, ChevronRight, RotateCw, ShieldCheck, MapPin, CheckCircle, RefreshCw, X, CheckSquare, Circle, AlignLeft, Lock } from 'lucide-react';
 import { DocumentFile, SignatureState, TextInstance, StampInstance, RedactInstance, FormFieldInstance, FormFieldType, CommentInstance, DrawInstance, DrawShape } from '../types';
 import { extractPageRuns, ExtractedRun } from '../services/textExtraction';
@@ -93,7 +89,6 @@ function enrichRunFromCanvas(
 
   return { ...run, bgColor, textColor, fontSize };
 }
->>>>>>> feat/prepare-form
 import { usePdf } from '../hooks/usePdf';
 import { cn, isPageInRange, fontCss, canvasFontString, TEXT_FONTS } from '../utils';
 import { handleThaanaKeyDown, isDhivehiFont } from '../utils/thaanaKeyboard';
@@ -126,13 +121,10 @@ interface DocumentViewerProps {
   setSignature: React.Dispatch<React.SetStateAction<SignatureState | null>>;
   texts: TextInstance[];
   setTexts: React.Dispatch<React.SetStateAction<TextInstance[]>>;
-<<<<<<< HEAD
-=======
   stamps: StampInstance[];
   setStamps: React.Dispatch<React.SetStateAction<StampInstance[]>>;
   redacts: RedactInstance[];
   setRedacts: React.Dispatch<React.SetStateAction<RedactInstance[]>>;
->>>>>>> feat/prepare-form
   isPlacementMode?: boolean;
   setIsPlacementMode?: (v: boolean) => void;
   placedForConfirmation?: boolean;
@@ -140,8 +132,6 @@ interface DocumentViewerProps {
   lastPlacedInstanceId?: string | null;
   setLastPlacedInstanceId?: (id: string | null) => void;
   onOpenTools?: () => void;
-<<<<<<< HEAD
-=======
   stampPlacementMode?: boolean;
   stampPlacementAsset?: { url: string; aspectRatio: number } | null;
   redactPlacementMode?: boolean;
@@ -174,7 +164,6 @@ interface DocumentViewerProps {
   // In-place text editing
   editTextMode?: boolean;
   onEditTextRun?: (run: ExtractedRun) => void;
->>>>>>> feat/prepare-form
 }
 
 interface PdfPageProps {
@@ -228,18 +217,6 @@ function PdfPage({
   setSignature,
   texts,
   setTexts,
-<<<<<<< HEAD
-  isPlacementMode = false,
-  setIsPlacementMode,
-  placedForConfirmation = false,
-  setPlacedForConfirmation,
-  lastPlacedInstanceId,
-  setLastPlacedInstanceId,
-  onOpenTools,
-}: DocumentViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-=======
   stamps,
   setStamps,
   redacts,
@@ -273,16 +250,10 @@ function PdfPage({
   editTextMode,
   onEditTextRun,
 }: PdfPageProps) {
->>>>>>> feat/prepare-form
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isMobile = useIsMobile();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [renderScale, setRenderScale] = useState(1);
-<<<<<<< HEAD
-  const [renderedDimensions, setRenderedDimensions] = useState({ width: 0, height: 0 });
-  const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
-=======
   const [loading, setLoading] = useState(false);
   const prevDimensionsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
 
@@ -397,128 +368,23 @@ function PdfPage({
 
     prevDimensionsRef.current = curr;
   }, [dimensions, pageNum, setSignature, setTexts, setStamps, setRedacts]);
->>>>>>> feat/prepare-form
 
-  // Track previous rendered dimensions so we can rescale signature/text positions
-  // when the canvas resizes (e.g. settings panel open/close).
-  const prevDimensionsRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
-  const currentPageRef = useRef(currentPage);
-  currentPageRef.current = currentPage;
-
-  // When renderedDimensions change due to a resize (same page), rescale all instances
-  useEffect(() => {
-    const prev = prevDimensionsRef.current;
-    const curr = renderedDimensions;
-
-    // Only rescale if we had a valid previous size and the new size is also valid
-    if (prev.width > 0 && prev.height > 0 && curr.width > 0 && curr.height > 0) {
-      const scaleX = curr.width / prev.width;
-      const scaleY = curr.height / prev.height;
-
-      // Only rescale if dimensions actually changed (skip identity transforms)
-      if (Math.abs(scaleX - 1) > 0.001 || Math.abs(scaleY - 1) > 0.001) {
-        setSignature(prevSig => {
-          if (!prevSig || !prevSig.instances.length) return prevSig;
-          return {
-            ...prevSig,
-            instances: prevSig.instances.map(inst => ({
-              ...inst,
-              pos: {
-                x: inst.pos.x * scaleX,
-                y: inst.pos.y * scaleY,
-                width: inst.pos.width * scaleX,
-                height: inst.pos.height * scaleY,
-              },
-              canvasWidth: curr.width,
-              canvasHeight: curr.height,
-            })),
-          };
-        });
-
-        setTexts(prevTexts => {
-          if (!prevTexts.length) return prevTexts;
-          return prevTexts.map(t => ({
-            ...t,
-            pos: {
-              x: t.pos.x * scaleX,
-              y: t.pos.y * scaleY,
-              width: t.pos.width * scaleX,
-              height: t.pos.height * scaleY,
-            },
-            fontSize: t.fontSize * scaleY,
-            canvasWidth: curr.width,
-            canvasHeight: curr.height,
-          }));
-        });
-      }
-    }
-
-    // Always update the ref to current dimensions
-    prevDimensionsRef.current = curr;
-  }, [renderedDimensions, setSignature, setTexts]);
-
-  // Track container width via ResizeObserver so PDF always re-renders at the right scale.
-  // We subtract 16px (8px padding on each side) to get true available width for the canvas.
-  const SCROLL_PADDING = 8; // px each side (matches style={{ padding: '0.5rem' }})
-  useEffect(() => {
-    const el = scrollAreaRef.current;
-    if (!el) return;
-
-    // Take an immediate measurement in case ResizeObserver fires late
-    const measure = () => {
-      const w = el.clientWidth - SCROLL_PADDING * 2;
-      if (w > 0) setContainerWidth(w);
-    };
-    measure();
-
-    const ro = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        // contentRect.width already excludes scrollbar but not our CSS padding,
-        // so subtract our explicit padding to get the true render width.
-        const w = entry.contentRect.width - SCROLL_PADDING * 2;
-        if (w > 0) setContainerWidth(w);
-      }
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // Render PDF page — re-runs whenever pdfDoc, page, or container width changes.
+  // Render PDF page
   useEffect(() => {
     let renderTask: any = null;
     let cancelled = false;
 
     const renderPage = async () => {
       if (!pdfDoc || !canvasRef.current) return;
-<<<<<<< HEAD
-
-      // Resolve an available width: prefer measured containerWidth, fall back to
-      // the element's live offsetWidth minus padding (handles cases where the
-      // ResizeObserver hasn't fired yet when pdfDoc first becomes ready).
-      let availableWidth = containerWidth;
-      if (availableWidth <= 0 && scrollAreaRef.current) {
-        availableWidth = scrollAreaRef.current.clientWidth - SCROLL_PADDING * 2;
-      }
-      if (availableWidth <= 0) return; // still not laid out — wait
-=======
       if (containerWidth <= 0) return;
->>>>>>> feat/prepare-form
 
       setLoading(true);
       try {
-<<<<<<< HEAD
-        const page = await pdfDoc.getPage(currentPage);
-        if (cancelled) return;
-
-        const unscaledViewport = page.getViewport({ scale: 1 });
-        const scale = Math.min(availableWidth / unscaledViewport.width, 2.5);
-=======
         const page = await pdfDoc.getPage(pageNum);
         if (cancelled) return;
 
         const unscaledViewport = page.getViewport({ scale: 1 });
         const scale = Math.min(containerWidth / unscaledViewport.width, 2.5);
->>>>>>> feat/prepare-form
         setRenderScale(scale);
 
         const viewport = page.getViewport({ scale });
@@ -527,8 +393,6 @@ function PdfPage({
         const context = canvas.getContext('2d');
         if (!context) return;
 
-        // Cancel any previous in-flight render task before resizing the canvas
-        // (resizing a canvas clears it, which is fine — we're about to redraw).
         canvas.height = viewport.height;
         canvas.width = viewport.width;
         setDimensions({ width: viewport.width, height: viewport.height });
@@ -541,15 +405,9 @@ function PdfPage({
         await renderTask.promise;
       } catch (err) {
         if (err instanceof Error && err.name === 'RenderingCancelledException') {
-<<<<<<< HEAD
-          // Ignore cancelled renders — a new one will follow.
-        } else {
-          console.error("PDF render error", err);
-=======
           // Ignore
         } else {
           console.error(`PDF render error page ${pageNum}`, err);
->>>>>>> feat/prepare-form
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -562,11 +420,7 @@ function PdfPage({
       cancelled = true;
       if (renderTask) renderTask.cancel();
     };
-<<<<<<< HEAD
-  }, [pdfDoc, currentPage, containerWidth]);
-=======
   }, [pdfDoc, pageNum, containerWidth]);
->>>>>>> feat/prepare-form
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -1645,135 +1499,6 @@ export function DocumentViewer({
     setPlacedForConfirmation(false);
   };
 
-  // --- Mobile Placement Mode Helpers ---
-  // Called when user taps on the document canvas in placement mode
-  const handleCanvasTap = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (!isPlacementMode || !signature || !setIsPlacementMode || !setPlacedForConfirmation || !setLastPlacedInstanceId) return;
-
-    const pageEl = window.document.getElementById('document-canvas-content') as HTMLElement | null;
-    const canvasWidth = pageEl?.clientWidth || 300;
-    const canvasHeight = pageEl?.clientHeight || 400;
-
-    // Get tap position relative to the actual document canvas (not the full overlay)
-    const canvasRect = pageEl?.getBoundingClientRect();
-    let tapX: number, tapY: number;
-    if (canvasRect) {
-      let clientX: number, clientY: number;
-      if ('touches' in e && e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-      } else {
-        clientX = (e as React.MouseEvent).clientX;
-        clientY = (e as React.MouseEvent).clientY;
-      }
-      tapX = clientX - canvasRect.left;
-      tapY = clientY - canvasRect.top;
-    } else {
-      // Fallback: smart default bottom-right quadrant
-      tapX = canvasWidth * 0.6;
-      tapY = canvasHeight * 0.72;
-    }
-
-    const sigWidth = Math.min(canvasWidth * 0.35, 180);
-    const sigHeight = signature.aspectRatio ? sigWidth / signature.aspectRatio : sigWidth * 0.4;
-    // Center the signature on the tap point, clamped to canvas bounds
-    const x = Math.max(0, Math.min(canvasWidth - sigWidth, tapX - sigWidth / 2));
-    const y = Math.max(0, Math.min(canvasHeight - sigHeight, tapY - sigHeight / 2));
-
-    const newInstanceId = Math.random().toString(36).substring(7);
-    const newInstance = {
-      id: newInstanceId,
-      pos: { x, y, width: sigWidth, height: sigHeight },
-      pageIndex: currentPage,
-      canvasWidth,
-      canvasHeight,
-      url: signature.url,
-      aspectRatio: signature.aspectRatio,
-    };
-
-    setSignature(prev => {
-      if (!prev) return prev;
-      return { ...prev, instances: [...(prev.instances || []), newInstance] };
-    });
-
-    setLastPlacedInstanceId(newInstanceId);
-    setIsPlacementMode(false);
-    setPlacedForConfirmation(true);
-  };
-
-  // Legacy handlePlacementTap kept as fallback (used by overlay click)
-  const handlePlacementTap = () => {
-    if (!isPlacementMode || !signature || !setIsPlacementMode || !setPlacedForConfirmation || !setLastPlacedInstanceId) return;
-
-    const pageEl = window.document.getElementById('document-canvas-content') as HTMLElement | null;
-    const canvasWidth = pageEl?.clientWidth || 300;
-    const canvasHeight = pageEl?.clientHeight || 400;
-
-    // Smart default: bottom-right quadrant
-    const sigWidth = Math.min(canvasWidth * 0.35, 180);
-    const sigHeight = signature.aspectRatio ? sigWidth / signature.aspectRatio : sigWidth * 0.4;
-    const x = canvasWidth * 0.6 - sigWidth / 2;
-    const y = canvasHeight * 0.72 - sigHeight / 2;
-
-    const newInstanceId = Math.random().toString(36).substring(7);
-    const newInstance = {
-      id: newInstanceId,
-      pos: { x, y, width: sigWidth, height: sigHeight },
-      pageIndex: currentPage,
-      canvasWidth,
-      canvasHeight,
-      url: signature.url,
-      aspectRatio: signature.aspectRatio,
-    };
-
-    setSignature(prev => {
-      if (!prev) return prev;
-      return { ...prev, instances: [...(prev.instances || []), newInstance] };
-    });
-
-    setLastPlacedInstanceId(newInstanceId);
-    setIsPlacementMode(false);
-    setPlacedForConfirmation(true);
-  };
-
-  const handlePlacementCancel = () => {
-    if (!setIsPlacementMode) return;
-    setIsPlacementMode(false);
-  };
-
-  const handleConfirmDone = () => {
-    if (!setPlacedForConfirmation) return;
-    setPlacedForConfirmation(false);
-    setLastPlacedInstanceId?.(null);
-  };
-
-  const handleReposition = () => {
-    if (!setIsPlacementMode || !setPlacedForConfirmation) return;
-    // Remove the last placed instance
-    if (lastPlacedInstanceId) {
-      setSignature(prev => {
-        if (!prev) return prev;
-        return { ...prev, instances: prev.instances.filter(i => i.id !== lastPlacedInstanceId) };
-      });
-      setLastPlacedInstanceId?.(null);
-    }
-    setPlacedForConfirmation(false);
-    setIsPlacementMode(true);
-  };
-
-  const handleCancelPlacement = () => {
-    if (!setPlacedForConfirmation) return;
-    // Remove the last placed instance
-    if (lastPlacedInstanceId) {
-      setSignature(prev => {
-        if (!prev) return prev;
-        return { ...prev, instances: prev.instances.filter(i => i.id !== lastPlacedInstanceId) };
-      });
-      setLastPlacedInstanceId?.(null);
-    }
-    setPlacedForConfirmation(false);
-  };
-
   if (!document) {
     return (
       <div className="flex-1 flex items-center justify-center p-4 md:p-8">
@@ -1784,10 +1509,6 @@ export function DocumentViewer({
           <h3 className="text-xl font-bold text-slate-800 tracking-tight">Ready to Flow</h3>
           <p className="mt-2 text-sm text-slate-500">Upload a document using the button above to get started</p>
 
-<<<<<<< HEAD
-          {/* Privacy badge */}
-=======
->>>>>>> feat/prepare-form
           <div className="mt-5 inline-flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-full px-3.5 py-1.5">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" strokeWidth={2.2} />
             <span className="text-[11px] font-medium text-emerald-800">100% private — files never leave your device</span>
@@ -1800,34 +1521,19 @@ export function DocumentViewer({
   return (
     <div className="flex-1 flex flex-col relative overflow-hidden md:rounded-2xl md:shadow-sm md:border md:border-slate-200/60 bg-white/40 backdrop-blur-3xl" ref={containerRef}>
 
-<<<<<<< HEAD
-      {/* ============================================================
-          MOBILE PLACEMENT MODE OVERLAY (only shown on mobile)
-          Tapping on the overlay places the signature at the tapped location
-          ============================================================ */}
-=======
 
 
       {/* MOBILE PLACEMENT OVERLAY */}
->>>>>>> feat/prepare-form
       {isPlacementMode && (
         <div
           className="md:hidden absolute inset-0 z-[100] flex flex-col placement-enter"
           style={{ background: 'rgba(15, 15, 35, 0.5)', backdropFilter: 'blur(2px)' }}
           onClick={handleCanvasTap}
           onTouchStart={(e) => {
-<<<<<<< HEAD
-            // Prevent scroll, then handle tap
-=======
->>>>>>> feat/prepare-form
             e.preventDefault();
             handleCanvasTap(e);
           }}
         >
-<<<<<<< HEAD
-          {/* Cancel button */}
-=======
->>>>>>> feat/prepare-form
           <button
             onClick={(e) => { e.stopPropagation(); handlePlacementCancel(); }}
             className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-colors"
@@ -1835,15 +1541,8 @@ export function DocumentViewer({
             <X size={16} />
           </button>
 
-<<<<<<< HEAD
-          {/* Top instruction bar — doesn't block taps on the document */}
-          <div className="absolute top-4 left-4 right-14 pointer-events-none">
-            <div className="bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-2.5 flex items-center gap-2.5 border border-white/10">
-              {/* Signature preview */}
-=======
           <div className="absolute top-4 left-4 right-14 pointer-events-none">
             <div className="bg-black/60 backdrop-blur-sm rounded-2xl px-4 py-2.5 flex items-center gap-2.5 border border-white/10 font-sans">
->>>>>>> feat/prepare-form
               {signature?.url && (
                 <div className="w-10 h-7 shrink-0 flex items-center justify-center bg-white/10 rounded-lg p-1">
                   <img
@@ -1861,10 +1560,6 @@ export function DocumentViewer({
             </div>
           </div>
 
-<<<<<<< HEAD
-          {/* Subtle crosshair hint in center */}
-=======
->>>>>>> feat/prepare-form
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="placement-pulse-ring w-14 h-14 rounded-full border-4 border-indigo-400/60 bg-indigo-500/10 flex items-center justify-center">
               <MapPin className="text-white/70" size={22} strokeWidth={2} />
@@ -1873,25 +1568,13 @@ export function DocumentViewer({
         </div>
       )}
 
-<<<<<<< HEAD
-      {/* ============================================================
-          POST-PLACEMENT FLOATING ACTION BAR (mobile only)
-          Shows after a signature is tapped into place
-          ============================================================ */}
-=======
       {/* POST-PLACEMENT FLOATING ACTION BAR (mobile only) */}
->>>>>>> feat/prepare-form
       {placedForConfirmation && (
         <div
           className="md:hidden fixed inset-x-0 bottom-[4rem] z-[90] px-3 float-up"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
-<<<<<<< HEAD
-          <div className="bg-slate-900 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] border border-white/10 px-3 py-3">
-            {/* Title row */}
-=======
           <div className="bg-slate-900 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] border border-white/10 px-3 py-3 font-sans">
->>>>>>> feat/prepare-form
             <div className="flex items-center justify-between mb-2.5">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -1899,38 +1582,22 @@ export function DocumentViewer({
               </div>
               <span className="text-white/40 text-[10px]">Drag to reposition</span>
             </div>
-<<<<<<< HEAD
-            {/* Actions */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleCancelPlacement}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 text-xs font-semibold transition-colors active:scale-95"
-=======
             <div className="flex items-center gap-2">
               <button
                 onClick={handleCancelPlacement}
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-white/10 text-white/70 hover:bg-white/20 text-xs font-semibold transition-colors active:scale-95 cursor-pointer"
->>>>>>> feat/prepare-form
               >
                 <X size={13} /> Remove
               </button>
               <button
                 onClick={handleReposition}
-<<<<<<< HEAD
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-indigo-500/25 text-indigo-200 hover:bg-indigo-500/40 text-xs font-semibold transition-colors active:scale-95"
-=======
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-indigo-500/25 text-indigo-200 hover:bg-indigo-500/40 text-xs font-semibold transition-colors active:scale-95 cursor-pointer"
->>>>>>> feat/prepare-form
               >
                 <RefreshCw size={13} /> Move
               </button>
               <button
                 onClick={handleConfirmDone}
-<<<<<<< HEAD
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-xs font-bold shadow-[0_2px_8px_rgba(99,102,241,0.5)] transition-all active:scale-95"
-=======
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-xs font-bold shadow-[0_2px_8px_rgba(99,102,241,0.5)] transition-all active:scale-95 cursor-pointer"
->>>>>>> feat/prepare-form
               >
                 <CheckCircle size={13} /> Done
               </button>
@@ -1938,24 +1605,14 @@ export function DocumentViewer({
           </div>
         </div>
       )}
-<<<<<<< HEAD
-      {/* Pagination Toolbar — mobile friendly positioning */}
-      {document.type === 'pdf' && numPages > 1 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 md:bottom-8 md:right-8 md:left-auto md:translate-x-0 flex items-center bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-slate-200 px-3 py-1.5 gap-3 z-20">
-=======
 
       {/* Pagination Toolbar */}
       {document.type === 'pdf' && numPages > 1 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 md:bottom-8 md:right-8 md:left-auto md:translate-x-0 flex items-center bg-white/95 backdrop-blur-sm rounded-full shadow-lg border border-slate-200 px-3 py-1.5 gap-3 z-20 font-sans">
->>>>>>> feat/prepare-form
           <button 
             onClick={() => scrollToPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
-<<<<<<< HEAD
-            className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-600 disabled:opacity-40 active:scale-90 transition-all"
-=======
             className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-600 disabled:opacity-40 active:scale-90 transition-all cursor-pointer"
->>>>>>> feat/prepare-form
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -1965,11 +1622,7 @@ export function DocumentViewer({
           <button 
             onClick={() => scrollToPage(Math.min(numPages, currentPage + 1))}
             disabled={currentPage === numPages}
-<<<<<<< HEAD
-            className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-600 disabled:opacity-40 active:scale-90 transition-all"
-=======
             className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-600 disabled:opacity-40 active:scale-90 transition-all cursor-pointer"
->>>>>>> feat/prepare-form
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -1977,46 +1630,6 @@ export function DocumentViewer({
       )}
 
       {/* Document Area */}
-<<<<<<< HEAD
-      <div className="flex-1 overflow-auto flex items-start justify-center bg-slate-100/50" style={{ padding: '0.5rem' }} ref={scrollAreaRef}>
-        <div 
-          className="relative bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] rounded-sm overflow-hidden flex flex-col transition-all duration-300"
-          style={{
-            width: renderedDimensions.width || 'auto',
-            height: renderedDimensions.height || 'auto'
-          }}
-          id="document-canvas-container"
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "copy";
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            const sigType = e.dataTransfer.getData("application/my-signature");
-            const textType = e.dataTransfer.getData("application/my-text");
-            
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            // Measure against the actual rendered page (canvas/img), NOT the
-            // container. The container can be taller/wider than the page it
-            // wraps, and using its size here would shift the signature on export.
-            const pageEl = e.currentTarget.querySelector('#document-canvas-content') as HTMLElement | null;
-            const canvasWidth = pageEl?.clientWidth || e.currentTarget.clientWidth;
-            const canvasHeight = pageEl?.clientHeight || e.currentTarget.clientHeight;
-
-            if (textType) {
-              setTexts(prev => [...prev, {
-                id: Math.random().toString(36).substring(7),
-                text: 'Double click to edit',
-                pageIndex: currentPage,
-                pos: { x, y, width: 200, height: 40 },
-                fontSize: 24,
-                color: '#000000',
-                fontFamily: TEXT_FONTS[0].value,
-                canvasWidth,
-                canvasHeight
-=======
       <div 
         className={`flex-1 overflow-auto flex flex-col items-center gap-6 bg-slate-100/50 ${textPlacementMode || stampPlacementMode || redactPlacementMode || formFieldPlacementMode || commentPlacementMode ? 'cursor-crosshair' : ''}`}
         style={{ padding: '1.5rem 0.5rem' }} 
@@ -2047,7 +1660,6 @@ export function DocumentViewer({
                 createdAt: new Date().toISOString(),
                 canvasWidth: cw,
                 canvasHeight: ch,
->>>>>>> feat/prepare-form
               }]);
               setSelectedCommentId(newId);
               onCommentPlaced?.();

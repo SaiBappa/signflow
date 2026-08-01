@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
-<<<<<<< HEAD
-=======
 // @ts-ignore
->>>>>>> feat/prepare-form
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import JSZip from 'jszip';
 import { downloadBlob, cn } from '../utils';
@@ -467,11 +464,7 @@ export function Convert() {
       const file = files[0];
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
-<<<<<<< HEAD
-      
-=======
 
->>>>>>> feat/prepare-form
       const zip = new JSZip();
 
       for (let i = 1; i <= pdf.numPages; i++) {

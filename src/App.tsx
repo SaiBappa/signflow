@@ -7,11 +7,6 @@ import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 import { DrawSignature } from './components/DrawSignature';
 import { DocumentViewer } from './components/DocumentViewer';
-<<<<<<< HEAD
-import { DocumentFile, SignatureState, SavedAsset, TextInstance } from './types';
-import { FileImage, FileSignature, Settings, Image as ImageIcon, FilePen, LayoutGrid, FileArchive, RefreshCw, Upload, PenTool, SlidersHorizontal, RotateCcw, Trash2, MoreVertical, Download, ShieldCheck } from 'lucide-react';
-import { removeImageBackground, downloadBlob, isPageInRange, TEXT_FONTS, cn } from './utils';
-=======
 import { DocumentFile, SignatureState, SavedAsset, TextInstance, StampAsset, StampInstance, RedactInstance, FormFieldInstance, FormFieldType, UserTemplate, CommentInstance, DrawInstance, DrawShape } from './types';
 import type { ExtractedRun } from './services/textExtraction';
 import { COMMENT_COLORS, DRAW_COLORS, DRAW_SHAPES, drawCommentToCanvas, drawDrawingToCanvas, drawCommentToPdf, drawDrawingToPdf } from './utils/annotations';
@@ -23,7 +18,6 @@ import { FileImage, FileSignature, Settings, Image as ImageIcon, FilePen, Layout
 import { getDefaultStamps } from './utils/defaultStamps';
 import { removeImageBackground, enhanceSignature, rotateImage, downloadBlob, isPageInRange, TEXT_FONTS, cn, canvasFontString, ensureTextFontsLoaded } from './utils';
 import { embedTextFonts, fontSpecKey } from './services/fontRegistry';
->>>>>>> feat/prepare-form
 import { Organize } from './components/Organize';
 import { Compress } from './components/Compress';
 import { Convert } from './components/Convert';
@@ -153,22 +147,11 @@ export default function App() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-<<<<<<< HEAD
-  const [isPlacementMode, setIsPlacementMode] = useState(false);
-  const [placedForConfirmation, setPlacedForConfirmation] = useState(false);
-  const [lastPlacedInstanceId, setLastPlacedInstanceId] = useState<string | null>(null);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [isInspectorOpen, setIsInspectorOpen] = useState(true);
-  const [isDrawing, setIsDrawing] = useState(false);
-
-  const isMobile = () => window.innerWidth < 768;
-=======
   const [isMobileToolSheetOpen, setIsMobileToolSheetOpen] = useState(false);
   const [isMobileDownloadOpen, setIsMobileDownloadOpen] = useState(false);
   const [isPlacementMode, setIsPlacementMode] = useState(false);
   const [placedForConfirmation, setPlacedForConfirmation] = useState(false);
   const [lastPlacedInstanceId, setLastPlacedInstanceId] = useState<string | null>(null);
->>>>>>> feat/prepare-form
 
   const [isInspectorOpen, setIsInspectorOpen] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -272,11 +255,7 @@ export default function App() {
       isMounted = false;
       clearTimeout(timer);
     };
-<<<<<<< HEAD
-  }, [signature?.bgRemovalTolerance, signature?.originalUrl, signature?.tintColor, signature?.bgRemovalMode]);
-=======
   }, [signature?.bgRemovalTolerance, signature?.originalUrl, signature?.tintColor, signature?.bgRemovalMode, signature?.enhanceEnabled, signature?.enhanceStrength]);
->>>>>>> feat/prepare-form
 
   const handleUploadDoc = (file: File) => {
     const isPdf = file.type === 'application/pdf';
@@ -286,14 +265,6 @@ export default function App() {
       url: URL.createObjectURL(file),
       file,
     });
-<<<<<<< HEAD
-    // Clear existing signatures/texts when a new document is uploaded
-    setSignature(null);
-    setTexts([]);
-    setIsPlacementMode(false);
-    setPlacedForConfirmation(false);
-    setLastPlacedInstanceId(null);
-=======
     // Track in recent files
     addRecentFile({ name: file.name, type: isPdf ? 'pdf' : 'image', size: file.size });
     // Clear existing signatures/texts/stamps/redacts when a new document is uploaded
@@ -313,18 +284,11 @@ export default function App() {
     setCommentPlacementMode(false);
     setDrawMode(false);
     setActiveTool('sign');
->>>>>>> feat/prepare-form
   };
 
   const handleClearSignatures = () => {
     setSignature(null);
     setTexts([]);
-<<<<<<< HEAD
-    setIsPlacementMode(false);
-    setPlacedForConfirmation(false);
-    setLastPlacedInstanceId(null);
-    setShowMobileMenu(false);
-=======
     setStamps([]);
     setRedacts([]);
     setIsPlacementMode(false);
@@ -339,19 +303,12 @@ export default function App() {
     setCommentPlacementMode(false);
     setDrawMode(false);
     setActiveTool('sign');
->>>>>>> feat/prepare-form
   };
 
   const handleStartAgain = () => {
     setDocumentFile(null);
     setSignature(null);
     setTexts([]);
-<<<<<<< HEAD
-    setIsPlacementMode(false);
-    setPlacedForConfirmation(false);
-    setLastPlacedInstanceId(null);
-    setShowMobileMenu(false);
-=======
     setStamps([]);
     setRedacts([]);
     setFormFields([]);
@@ -450,7 +407,6 @@ export default function App() {
     } finally {
       setSavingTemplate(false);
     }
->>>>>>> feat/prepare-form
   };
 
   const handleUploadSig = (file: File) => {
@@ -492,11 +448,7 @@ export default function App() {
           url: newAsset.url,
           originalUrl: newAsset.originalUrl,
           bgRemovalTolerance: 50,
-<<<<<<< HEAD
-          bgRemovalMode: 'white',
-=======
           bgRemovalMode: 'auto',
->>>>>>> feat/prepare-form
           pos: { x: 100, y: 100, width: 150, height: 150 / aspectRatio },
           applyMode: 'single',
           customPages: '',
@@ -506,11 +458,7 @@ export default function App() {
         }));
 
         // On mobile: auto-close panel and enter placement mode
-<<<<<<< HEAD
-        if (isMobile()) {
-=======
         if (mobile) {
->>>>>>> feat/prepare-form
           setIsMobileSidebarOpen(false);
           setIsPlacementMode(true);
           setPlacedForConfirmation(false);
@@ -1665,11 +1613,6 @@ export default function App() {
           {activeTab === 'Fill & Sign' && (
             <div className="hidden md:flex items-center relative">
               <button 
-<<<<<<< HEAD
-                onClick={handleDownload}
-                disabled={!documentFile || !signature || isExporting}
-                className="hidden md:flex group relative px-4 md:px-6 py-2 md:py-2.5 text-xs md:text-sm font-bold text-white shadow-[0_4px_14px_0_rgb(79,70,229,39%)] hover:shadow-[0_6px_20px_rgba(79,70,229,23%)] disabled:shadow-none bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed items-center gap-2 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
-=======
                 onClick={() => {
                   if (documentFile?.type === 'pdf') {
                     setIsDownloadDropdownOpen(prev => !prev);
@@ -1680,7 +1623,6 @@ export default function App() {
                 disabled={!documentFile || !hasActions || isExporting}
                 title={!hasActions ? 'Add at least one signature, stamp, text, or redaction before downloading' : ''}
                 className="group relative px-4 md:px-5 min-[1750px]:px-6 py-2 md:py-2.5 text-xs md:text-sm font-bold text-white shadow-[0_4px_14px_0_rgb(79,70,229,39%)] hover:shadow-[0_6px_20px_rgba(79,70,229,23%)] disabled:shadow-none bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
->>>>>>> feat/prepare-form
               >
                 {isExporting ? (
                   <>
@@ -1689,17 +1631,12 @@ export default function App() {
                   </>
                 ) : (
                   <>
-<<<<<<< HEAD
-                     <span className="hidden sm:inline">Finish & Download</span>
-                     <span className="sm:hidden">Download</span>
-=======
                     <Download size={16} strokeWidth={2.5} />
                     <span className="hidden min-[1750px]:inline">Finish &amp; Download</span>
                     <span className="min-[1750px]:hidden">Download</span>
                     {documentFile?.type === 'pdf' && (
                       <ChevronDown size={14} strokeWidth={2.5} className={`ml-0.5 transition-transform duration-200 ${isDownloadDropdownOpen ? 'rotate-180' : ''}`} />
                     )}
->>>>>>> feat/prepare-form
                   </>
                 )}
               </button>
@@ -1753,16 +1690,12 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-<<<<<<< HEAD
-      <div className="flex flex-col flex-1 overflow-hidden relative mb-14 md:mb-0">
-=======
       {/* On mobile, reserve extra bottom space when the persistent tools bar is shown
           (Fill & Sign with a document) so the document isn't hidden behind it. */}
       <div className={cn(
         "flex flex-col flex-1 overflow-hidden relative md:mb-0",
         activeTab === 'Fill & Sign' && documentFile ? "mb-[7.75rem]" : "mb-14"
       )}>
->>>>>>> feat/prepare-form
         {activeTab === 'Fill & Sign' && (
           <>
             {!documentFile ? (
@@ -1776,11 +1709,7 @@ export default function App() {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-<<<<<<< HEAD
-                  className="w-full max-w-xl bg-white/70 backdrop-blur-xl border border-slate-200/50 rounded-3xl p-8 md:p-12 text-center shadow-[0_20px_50px_-20px_rgba(79,70,229,0.15)] relative group hover:shadow-[0_25px_60px_-15px_rgba(79,70,229,0.22)] hover:border-indigo-200/80 transition-all duration-500"
-=======
                   className="edge-highlight w-full max-w-xl bg-white/75 backdrop-blur-xl border border-slate-200/60 rounded-3xl p-8 md:p-12 text-center shadow-[0_30px_70px_-28px_rgba(79,70,229,0.30)] relative group hover:shadow-[0_36px_80px_-24px_rgba(79,70,229,0.34)] hover:border-indigo-200/80 hover:-translate-y-0.5 transition-all duration-500"
->>>>>>> feat/prepare-form
                 >
                   <input
                     type="file"
@@ -1797,11 +1726,7 @@ export default function App() {
                     <Upload className="w-9 h-9 text-white animate-pulse" strokeWidth={2} />
                   </div>
                   
-<<<<<<< HEAD
-                  <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight leading-tight">
-=======
                   <h2 className="font-display text-2xl md:text-3xl font-bold text-slate-800 tracking-tight leading-tight">
->>>>>>> feat/prepare-form
                     Upload your document
                   </h2>
                   <p className="mt-3 text-slate-500 text-sm font-medium max-w-sm mx-auto leading-relaxed">
@@ -1818,363 +1743,13 @@ export default function App() {
                     <span>100% secure. Processing is fully local in your browser.</span>
                   </div>
                 </motion.div>
-<<<<<<< HEAD
-=======
 
 
->>>>>>> feat/prepare-form
               </div>
             ) : (
               /* ============================================================
                  2. DOCUMENT PRESENT STATE - PREMIUM REDESIGN
                  ============================================================ */
-<<<<<<< HEAD
-              <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Horizontal Top Controller Bar */}
-                <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 md:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 shadow-sm relative z-20">
-                  
-                  {/* Left Column: Active / Upload Signature */}
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
-                    {!signature ? (
-                      /* Guided Signature Upload Area (Soft pulsing indigo outline) */
-                      <div className="flex items-center gap-3 bg-gradient-to-r from-indigo-50/50 to-violet-50/30 border border-indigo-100/70 rounded-2xl p-2 pr-4 shadow-sm animate-pulse-subtle">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 font-bold shrink-0">
-                          ✍️
-                        </div>
-                        <div className="text-left">
-                          <p className="text-xs font-extrabold text-indigo-900 leading-tight">Create your signature</p>
-                          <div className="flex gap-3 mt-1.5">
-                            <label className="text-[10px] text-indigo-600 font-bold hover:text-indigo-800 hover:underline cursor-pointer">
-                              Upload File
-                              <input 
-                                type="file" 
-                                className="hidden" 
-                                accept="image/png,image/jpeg,image/webp" 
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) handleUploadSig(file);
-                                }} 
-                              />
-                            </label>
-                            <span className="text-[10px] text-indigo-200">|</span>
-                            <button 
-                              onClick={() => setIsDrawing(true)} 
-                              className="text-[10px] text-indigo-600 font-bold hover:text-indigo-800 hover:underline flex items-center gap-0.5"
-                            >
-                              Draw Signature
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Glowing Active Signature Preview Box (Draggable) */
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="h-14 w-32 border border-slate-200 bg-slate-50/50 hover:bg-white hover:border-indigo-400 rounded-xl p-1.5 flex items-center justify-center cursor-grab active:cursor-grabbing group relative transition-all duration-300 shadow-sm"
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData("application/my-signature", "true");
-                          }}
-                        >
-                          <img src={signature.url} className="max-h-full max-w-full object-contain mix-blend-multiply opacity-80 group-hover:opacity-100 transition-opacity" />
-                          <div className="absolute inset-0 bg-indigo-500/5 opacity-0 group-hover:opacity-100 flex items-center justify-center rounded-xl pointer-events-none transition-opacity">
-                            <span className="text-[9px] font-bold text-indigo-700 bg-white/95 px-1.5 py-0.5 rounded shadow-sm border border-indigo-100">Drag me!</span>
-                          </div>
-                          
-                          <button 
-                            onClick={() => setSignature(null)}
-                            className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all text-[8px]"
-                            title="Remove signature"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        
-                        <div className="hidden lg:flex flex-col text-left">
-                          <span className="text-[10px] font-bold text-slate-800 flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
-                            Drag and drop signature
-                          </span>
-                          <span className="text-[9px] text-slate-400 mt-0.5">Drag onto desired location in document</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Middle Column: Saved Signatures container */}
-                  {savedAssets.length > 0 && (
-                    <div className="flex items-center gap-2 border-l border-slate-200 pl-4 py-1">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 hidden xl:block">Saved:</span>
-                      <div className="flex gap-1.5 overflow-x-auto max-w-[150px] sm:max-w-[240px] md:max-w-[320px] py-1 px-1">
-                        {savedAssets.map(asset => (
-                          <div key={asset.id} className="relative group shrink-0">
-                            <button
-                              onClick={() => {
-                                setSignature(prev => ({
-                                  url: asset.url,
-                                  originalUrl: asset.originalUrl,
-                                  bgRemovalTolerance: 50,
-                                  bgRemovalMode: prev?.bgRemovalMode || 'white',
-                                  pos: { x: 100, y: 100, width: 150, height: 150 / asset.aspectRatio },
-                                  applyMode: prev ? prev.applyMode : 'single',
-                                  customPages: prev ? prev.customPages : '',
-                                  excludedPages: prev ? prev.excludedPages : '',
-                                  instances: prev ? prev.instances : [],
-                                  aspectRatio: asset.aspectRatio,
-                                }));
-                              }}
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData("application/my-signature", JSON.stringify({ url: asset.url, aspectRatio: asset.aspectRatio }));
-                              }}
-                              className={cn(
-                                "w-11 h-9 border rounded-lg flex items-center justify-center p-1 bg-slate-50 transition-all cursor-grab active:cursor-grabbing hover:scale-105",
-                                signature?.url === asset.url ? "border-indigo-500 bg-indigo-50/50 shadow-sm" : "border-slate-200 hover:border-indigo-300"
-                              )}
-                            >
-                              <img src={asset.url} className="max-w-full max-h-full object-contain pointer-events-none" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteAsset(asset.id);
-                              }}
-                              className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-white border border-slate-200 text-slate-400 shadow-sm flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all z-10 text-[8px]"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Right Column: Drawing Trigger & Settings Panel Toggle */}
-                  <div className="flex items-center gap-2 ml-auto shrink-0">
-                    {signature && (
-                      <button 
-                        onClick={() => setIsDrawing(true)}
-                        className="px-3 py-1.5 border border-slate-200 hover:border-indigo-300 hover:bg-slate-50 text-slate-600 hover:text-indigo-600 font-bold text-xs rounded-xl flex items-center gap-1 transition-colors shadow-sm cursor-pointer"
-                      >
-                        <PenTool className="w-3.5 h-3.5" /> Draw New
-                      </button>
-                    )}
-                    
-                    {signature && (
-                      <button
-                        onClick={() => setIsInspectorOpen(v => !v)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center gap-1 transition-all shadow-sm cursor-pointer",
-                          isInspectorOpen
-                            ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold"
-                            : "bg-white border-slate-200 hover:border-indigo-300 hover:bg-slate-50 text-slate-600 hover:text-indigo-600"
-                        )}
-                      >
-                        <SlidersHorizontal className="w-3.5 h-3.5" />
-                        <span>Settings</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Main Workspace Frame */}
-                <div className="flex-1 flex flex-row overflow-hidden relative">
-                  {/* Center Canvas */}
-                  <main className="flex-1 bg-slate-100/50 p-0 md:p-6 lg:p-8 flex flex-col justify-start md:justify-center relative overflow-hidden transition-all duration-300">
-                    <div className="hidden md:block absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.02] pointer-events-none mix-blend-multiply border-l border-white/50" />
-                    
-                    <DocumentViewer 
-                      document={documentFile}
-                      signature={signature}
-                      setSignature={setSignature}
-                      texts={texts}
-                      setTexts={setTexts}
-                      isPlacementMode={isPlacementMode}
-                      setIsPlacementMode={setIsPlacementMode}
-                      placedForConfirmation={placedForConfirmation}
-                      setPlacedForConfirmation={setPlacedForConfirmation}
-                      lastPlacedInstanceId={lastPlacedInstanceId}
-                      setLastPlacedInstanceId={setLastPlacedInstanceId}
-                    />
-                  </main>
-
-                  {/* Collapsible Sliding Inspector Panel */}
-                  <AnimatePresence>
-                    {isInspectorOpen && signature && (
-                      <motion.div
-                        initial={{ opacity: 0, x: 280 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 280 }}
-                        transition={{ type: "spring", bounce: 0, duration: 0.35 }}
-                        className="w-72 shrink-0 bg-white/95 backdrop-blur-xl border-l border-slate-200 shadow-2xl flex flex-col h-full overflow-y-auto z-30"
-                      >
-                        <div className="p-5 space-y-6">
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Signature Settings</span>
-                            <button 
-                              onClick={() => setIsInspectorOpen(false)}
-                              className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors text-xs"
-                            >
-                              ✕
-                            </button>
-                          </div>
-
-                          {/* Background Remove Settings */}
-                          <div className="space-y-3">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Remove Background</span>
-                            <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl text-[10px] font-semibold">
-                              {[
-                                { id: 'white', label: 'White' },
-                                { id: 'black', label: 'Black' },
-                                { id: 'auto', label: 'Auto' },
-                              ].map(mode => (
-                                <button
-                                  key={mode.id}
-                                  type="button"
-                                  onClick={() => setSignature(p => p ? { ...p, bgRemovalMode: mode.id as any } : null)}
-                                  className={cn(
-                                    "py-1.5 rounded-lg text-center cursor-pointer transition-all",
-                                    signature.bgRemovalMode === mode.id
-                                      ? "bg-white text-indigo-700 shadow-sm font-bold border border-slate-200/30"
-                                      : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/30"
-                                  )}
-                                >
-                                  {mode.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Tolerance Slider */}
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center text-xs">
-                              <span className="text-slate-600 font-medium">Removal Tolerance</span>
-                              <span className="text-slate-500 font-bold font-mono">{signature.bgRemovalTolerance}%</span>
-                            </div>
-                            <input
-                              type="range"
-                              min="0"
-                              max="200"
-                              value={signature.bgRemovalTolerance}
-                              onChange={(e) => setSignature(p => p ? { ...p, bgRemovalTolerance: Number(e.target.value) } : null)}
-                              className="w-full accent-indigo-600 h-1 bg-slate-100 rounded-full appearance-none cursor-pointer"
-                            />
-                          </div>
-
-                          {/* Tint Color Selector */}
-                          <div className="space-y-2 border-t border-slate-100 pt-4">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Tint Color</span>
-                            <div className="flex gap-2">
-                              {[
-                                { name: 'Original', value: undefined },
-                                { name: 'Black', value: '#000000' },
-                                { name: 'Blue', value: '#2563eb' },
-                                { name: 'Red', value: '#dc2626' },
-                                { name: 'Green', value: '#16a34a' },
-                              ].map(color => (
-                                <button
-                                  key={color.name}
-                                  onClick={() => setSignature(p => p ? { ...p, tintColor: color.value } : null)}
-                                  className={cn(
-                                    "w-6 h-6 rounded-full border-2 transition-transform hover:scale-115 cursor-pointer",
-                                    signature.tintColor === color.value ? "border-slate-400 scale-110 shadow-md" : "border-transparent shadow-sm",
-                                    !color.value && "bg-white overflow-hidden"
-                                  )}
-                                  style={color.value ? { backgroundColor: color.value } : {}}
-                                  title={color.name}
-                                >
-                                  {!color.value && (
-                                    <div className="w-full h-full bg-slate-200" style={{ backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc), linear-gradient(45deg, #ccc 25%, transparent 25%, transparent 75%, #ccc 75%, #ccc)', backgroundSize: '8px 8px', backgroundPosition: '0 0, 4px 4px' }} />
-                                  )}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Scope / Placement Range Selector */}
-                          <div className="space-y-3 border-t border-slate-100 pt-4">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Apply Scope</span>
-                            <div className="flex flex-col gap-2">
-                              <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
-                                <input 
-                                  type="radio" 
-                                  name="applyMode" 
-                                  value="single"
-                                  checked={signature.applyMode === 'single'}
-                                  onChange={() => setSignature(p => p ? { ...p, applyMode: 'single' } : null)}
-                                  className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                                />
-                                <span>Current Page Only</span>
-                              </label>
-
-                              <div className="flex flex-col gap-1">
-                                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
-                                  <input 
-                                    type="radio" 
-                                    name="applyMode" 
-                                    value="all"
-                                    checked={signature.applyMode === 'all'}
-                                    onChange={() => setSignature(p => p ? { ...p, applyMode: 'all' } : null)}
-                                    className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                                  />
-                                  <span>Apply to All Pages</span>
-                                </label>
-                                {signature.applyMode === 'all' && (
-                                  <div className="space-y-1 pl-7 animate-fade-in">
-                                    <label className="text-[10px] text-slate-400 font-bold block">Exclude Pages (e.g. 1, 3-5)</label>
-                                    <input 
-                                      type="text" 
-                                      value={signature.excludedPages || ''}
-                                      onChange={(e) => setSignature(p => p ? { ...p, excludedPages: e.target.value } : null)}
-                                      placeholder="None"
-                                      className="w-full border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                    />
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="flex flex-col gap-1">
-                                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700">
-                                  <input 
-                                    type="radio" 
-                                    name="applyMode" 
-                                    value="custom"
-                                    checked={signature.applyMode === 'custom'}
-                                    onChange={() => setSignature(p => p ? { ...p, applyMode: 'custom' } : null)}
-                                    className="text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                                  />
-                                  <span>Specific Page Range</span>
-                                </label>
-                                {signature.applyMode === 'custom' && (
-                                  <div className="space-y-1 pl-7 animate-fade-in">
-                                    <label className="text-[10px] text-slate-400 font-bold block">Pages list (e.g. 1, 3-5)</label>
-                                    <input 
-                                      type="text" 
-                                      value={signature.customPages || ''}
-                                      onChange={(e) => setSignature(p => p ? { ...p, customPages: e.target.value } : null)}
-                                      placeholder="e.g. 1, 3-5"
-                                      className="w-full border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                    />
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Private Security Badge inside Settings Tray */}
-                          <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3 flex gap-2 pt-3">
-                            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" strokeWidth={2.5} />
-                            <p className="text-[10px] text-emerald-800 leading-normal font-semibold">
-                              All adjustments happen instantly on your device via client-side Canvas operations.
-                            </p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-=======
               <div className="flex-1 flex flex-row overflow-hidden">
                 {/* ── Vertical Tool Palette ── */}
                 <div className="hidden md:flex flex-col w-14 shrink-0 bg-white/95 backdrop-blur-xl border-r border-slate-200/60 items-center py-4 gap-1 z-20">
@@ -2702,7 +2277,6 @@ export default function App() {
                     onEditTextRun={handleEditTextRun}
                   />
                 </main>
->>>>>>> feat/prepare-form
               </div>
             )}
           </>
@@ -2742,14 +2316,6 @@ export default function App() {
       </Footer>
 
       {isDrawing && (
-<<<<<<< HEAD
-        <DrawSignature 
-          onSave={handleDrawSave} 
-          onCancel={() => setIsDrawing(false)} 
-        />
-      )}
-      <div className="md:hidden shrink-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-100/80 flex items-center justify-around z-30 px-1 pb-safe pt-1 min-h-[4rem] shadow-[0_-1px_0_0_rgba(0,0,0,0.04)]">
-=======
         <DrawSignature
           onSave={handleDrawSave}
           onCancel={() => setIsDrawing(false)}
@@ -3079,7 +2645,6 @@ export default function App() {
 
       {/* ─── MOBILE BOTTOM TAB BAR ─── */}
       <div className="md:hidden fixed bottom-0 inset-x-0 w-full bg-white/95 backdrop-blur-xl border-t border-slate-100/80 flex items-center justify-around z-30 px-1 pb-safe pt-1 min-h-[4rem] shadow-[0_-1px_0_0_rgba(0,0,0,0.04)]">
->>>>>>> feat/prepare-form
         {[
           { id: 'Fill & Sign', icon: <FilePen size={20} strokeWidth={1.8} />, label: 'Sign' },
           { id: 'Organize', icon: <LayoutGrid size={20} strokeWidth={1.8} />, label: 'Organize' },
@@ -3088,13 +2653,8 @@ export default function App() {
         ].map(tab => (
           <button
             key={tab.id}
-<<<<<<< HEAD
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex flex-col items-center justify-center flex-1 h-full gap-1 py-2 transition-all duration-200 ${
-=======
             onClick={() => { setActiveTab(tab.id as any); setIsMobileToolSheetOpen(false); }}
             className={`relative flex flex-col items-center justify-center flex-1 h-full gap-1 py-2 transition-all duration-200 ${
->>>>>>> feat/prepare-form
               activeTab === tab.id
                 ? 'text-indigo-600'
                 : 'text-slate-400 hover:text-slate-600'

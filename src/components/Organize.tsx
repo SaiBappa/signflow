@@ -3,10 +3,7 @@ import { PDFDocument, degrees } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-<<<<<<< HEAD
-=======
 import { LayoutGrid, Download } from 'lucide-react';
->>>>>>> feat/prepare-form
 import { downloadBlob } from '../utils';
 import { ToolLayout, PrimaryButton } from './shared/ToolLayout';
 import { UploadDropzone } from './shared/UploadDropzone';

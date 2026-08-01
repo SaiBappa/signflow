@@ -66,11 +66,7 @@ export function Sidebar({
   };
 
   return (
-<<<<<<< HEAD
-    <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shrink-0 h-full overflow-y-auto z-10">
-=======
     <aside className="w-full md:w-72 bg-white md:border-r border-slate-200 flex flex-col shrink-0 h-full overflow-y-auto z-10">
->>>>>>> feat/prepare-form
       <div className="p-6 space-y-8 flex-1">
         {/* Document Section */}
         <section className="space-y-4">
@@ -113,11 +109,7 @@ export function Sidebar({
                 }}
               >
                 <img src={signatureUrl} className="max-h-full max-w-full mix-blend-multiply pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity" />
-<<<<<<< HEAD
-                <div className="absolute inset-0 bg-indigo-50/10 opacity-0 group-hover:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
-=======
                 <div className="absolute inset-0 bg-indigo-50/10 opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center justify-center pointer-events-none transition-opacity">
->>>>>>> feat/prepare-form
                    <span className="hidden md:block text-[10px] font-semibold text-indigo-700 bg-white/90 px-2 py-1 rounded shadow-sm border border-indigo-100">Drag to Document</span>
                    <span className="md:hidden text-[10px] font-semibold text-indigo-700 bg-white/90 px-2 py-1 rounded shadow-sm border border-indigo-100">Tap to place</span>
                 </div>
