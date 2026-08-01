@@ -110,12 +110,23 @@ afterEach(() => {
 });
 
 import { DocumentViewer } from '../components/DocumentViewer';
-import type { DocumentFile, SignatureState, TextInstance } from '../types';
+import type {
+  DocumentFile,
+  RedactInstance,
+  SignatureState,
+  StampInstance,
+  TextInstance,
+} from '../types';
 
-// Wrapper component that manages state like App.tsx does
+// Wrapper component that manages state like App.tsx does.
+// Text placement mode is owned by App and passed down to the viewer, so the
+// harness plays App's part: it holds the flag and exposes a toggle.
 function TestWrapper({ initialTexts = [] }: { initialTexts?: TextInstance[] }) {
   const [texts, setTexts] = useState<TextInstance[]>(initialTexts);
   const [signature, setSignature] = useState<SignatureState | null>(null);
+  const [stamps, setStamps] = useState<StampInstance[]>([]);
+  const [redacts, setRedacts] = useState<RedactInstance[]>([]);
+  const [textPlacementMode, setTextPlacementMode] = useState(false);
 
   const mockDocument: DocumentFile = {
     type: 'pdf',
@@ -126,62 +137,92 @@ function TestWrapper({ initialTexts = [] }: { initialTexts?: TextInstance[] }) {
 
   return (
     <div style={{ width: 800, height: 600 }}>
+      <button data-testid="toggle-placement" onClick={() => setTextPlacementMode(v => !v)}>
+        toggle
+      </button>
       <DocumentViewer
         document={mockDocument}
         signature={signature}
         setSignature={setSignature}
         texts={texts}
         setTexts={setTexts}
+        stamps={stamps}
+        setStamps={setStamps}
+        redacts={redacts}
+        setRedacts={setRedacts}
+        textPlacementMode={textPlacementMode}
+        onTextPlacementModeChange={setTextPlacementMode}
       />
-      {/* Expose texts count for assertions */}
+      {/* Expose state for assertions */}
       <div data-testid="text-count">{texts.length}</div>
+      <div data-testid="placement-mode">{String(textPlacementMode)}</div>
       <div data-testid="text-data">{JSON.stringify(texts)}</div>
     </div>
   );
 }
 
-describe('Add Text button', () => {
-  it('should toggle text placement mode when clicked', async () => {
-    render(<TestWrapper />);
-
-    // Wait for the button to appear
-    const addTextButton = await waitFor(() => {
-      return screen.getByTitle('Add text field to page');
-    }, { timeout: 3000 });
-
-    expect(addTextButton).toBeTruthy();
-    expect(addTextButton.textContent).toContain('Add Text');
-
-    // Before click: no texts
-    expect(screen.getByTestId('text-count').textContent).toBe('0');
-
-    // Click Add Text — should enter placement mode
-    await act(async () => {
-      fireEvent.click(addTextButton);
-    });
-
-    // Button should now show placement mode text
-    expect(addTextButton.textContent).toContain('Click on page');
-
-    // No text created yet (need to click on page)
-    expect(screen.getByTestId('text-count').textContent).toBe('0');
-
-    // Click again to cancel placement mode
-    await act(async () => {
-      fireEvent.click(addTextButton);
-    });
-
-    expect(addTextButton.textContent).toContain('Add Text');
-  });
-
+describe('Add Text placement', () => {
   it('should start with no texts and placement mode off', async () => {
     render(<TestWrapper />);
 
-    const addTextButton = await waitFor(() => {
-      return screen.getByTitle('Add text field to page');
-    }, { timeout: 3000 });
+    await waitFor(() => {
+      expect(screen.getByTestId('text-count')).toBeInTheDocument();
+    });
 
     expect(screen.getByTestId('text-count').textContent).toBe('0');
-    expect(addTextButton.textContent).toContain('Add Text');
+    expect(screen.getByTestId('placement-mode').textContent).toBe('false');
+  });
+
+  it('should not create a text while placement mode is off', async () => {
+    render(<TestWrapper />);
+
+    const pageEl = await waitFor(
+      () => {
+        const el = document.querySelector('[data-page-number]');
+        if (!el) throw new Error('page not rendered yet');
+        return el;
+      },
+      { timeout: 3000 }
+    );
+
+    await act(async () => {
+      fireEvent.click(pageEl);
+    });
+
+    expect(screen.getByTestId('text-count').textContent).toBe('0');
+  });
+
+  it('should place a text and leave placement mode when the page is clicked', async () => {
+    render(<TestWrapper />);
+
+    const pageEl = await waitFor(
+      () => {
+        const el = document.querySelector('[data-page-number]');
+        if (!el) throw new Error('page not rendered yet');
+        return el;
+      },
+      { timeout: 3000 }
+    );
+
+    // App turns placement mode on…
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('toggle-placement'));
+    });
+    expect(screen.getByTestId('placement-mode').textContent).toBe('true');
+
+    // …then a click on the page creates the text instance.
+    await act(async () => {
+      fireEvent.click(pageEl);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('text-count').textContent).toBe('1');
+    });
+
+    // The viewer reports back that placement is done.
+    expect(screen.getByTestId('placement-mode').textContent).toBe('false');
+
+    const placed = JSON.parse(screen.getByTestId('text-data').textContent || '[]');
+    expect(placed[0]).toMatchObject({ text: '', fontSize: 18, fontFamily: 'Helvetica' });
   });
 });

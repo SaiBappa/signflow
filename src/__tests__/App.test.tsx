@@ -270,11 +270,11 @@ describe('App Component', () => {
       await userEvent.upload(input!, file);
 
       await waitFor(() => {
-        expect(screen.getByText('Create your signature')).toBeInTheDocument();
+        expect(screen.getByText('Signatures')).toBeInTheDocument();
       });
     });
 
-    it('should show Upload File and Draw Signature options', async () => {
+    it('should show Upload and Draw signature options', async () => {
       render(<App />);
       const file = new File(['pdf-content'], 'doc.pdf', { type: 'application/pdf' });
       const input = document.querySelector('input[type="file"][accept*="application/pdf"]') as HTMLInputElement;
@@ -282,9 +282,10 @@ describe('App Component', () => {
       await userEvent.upload(input!, file);
 
       await waitFor(() => {
-        expect(screen.getByText('Upload File')).toBeInTheDocument();
-        expect(screen.getByText('Draw Signature')).toBeInTheDocument();
+        expect(screen.getByText('Upload')).toBeInTheDocument();
       });
+      // 'Draw' is also a tool-rail and mobile-bar action, so more than one exists.
+      expect(screen.getAllByRole('button', { name: 'Draw' }).length).toBeGreaterThan(0);
     });
   });
 

@@ -1,4 +1,37 @@
 import '@testing-library/jest-dom';
+import { afterAll, beforeAll, beforeEach, vi } from 'vitest';
+
+// --- localStorage / sessionStorage ---
+// Node exposes an experimental Web Storage global that shadows jsdom's
+// implementation but is unusable without --localstorage-file, so a component
+// calling localStorage.getItem() throws "getItem is not a function".
+// Install a plain in-memory Storage instead.
+function createStorage(): Storage {
+  const store = new Map<string, string>();
+  return {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => void store.set(key, String(value)),
+    removeItem: (key: string) => void store.delete(key),
+    clear: () => store.clear(),
+    key: (index: number) => [...store.keys()][index] ?? null,
+    get length() {
+      return store.size;
+    },
+  } as Storage;
+}
+
+for (const name of ['localStorage', 'sessionStorage'] as const) {
+  const storage = createStorage();
+  for (const target of new Set<object>([window, globalThis])) {
+    Object.defineProperty(target, name, { value: storage, writable: true, configurable: true });
+  }
+}
+
+// Keep storage from leaking between tests.
+beforeEach(() => {
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+});
 
 // --- Canvas mock ---
 // HTMLCanvasElement.getContext doesn't work in jsdom, so we provide a minimal mock.

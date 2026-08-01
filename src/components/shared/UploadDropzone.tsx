@@ -9,7 +9,8 @@ interface UploadDropzoneProps {
   accept?: string;
   multiple?: boolean;
   title?: string;
-  subtitle?: string;
+  /** Callers pass rich content (e.g. a highlighted "browse" span), not just text. */
+  subtitle?: React.ReactNode;
   /** Small format chips, e.g. ['📄 PDF', '🖼️ PNG / JPG']. */
   chips?: string[];
   icon?: React.ReactNode;

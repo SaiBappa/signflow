@@ -108,7 +108,8 @@ import { Organize } from '../components/Organize';
 describe('Compress Component', () => {
   it('should render the compression heading', () => {
     render(<Compress />);
-    expect(screen.getByText('Compress PDF')).toBeInTheDocument();
+    // 'Compress PDF' is both the tool heading and the action button.
+    expect(screen.getByRole('heading', { name: 'Compress PDF' })).toBeInTheDocument();
   });
 
   it('should render the description text', () => {
@@ -140,8 +141,8 @@ describe('Compress Component', () => {
 
   it('should show the upload dropzone when no file is loaded', () => {
     render(<Compress />);
-    expect(screen.getByText('Drop PDF here or click to select')).toBeInTheDocument();
-    expect(screen.getByText('PDF files only')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Add a PDF to compress' })).toBeInTheDocument();
+    expect(screen.getByText('📄 PDF only')).toBeInTheDocument();
   });
 
   it('should accept only PDF files', () => {
@@ -159,8 +160,9 @@ describe('Compress Component', () => {
     fireEvent.change(input);
 
     await waitFor(() => {
-      expect(screen.getByText('large-doc.pdf')).toBeInTheDocument();
-      expect(screen.getByText('Compress PDF', { selector: 'button' })).toBeInTheDocument();
+      // The name shows in both the panel file chip and the main file card.
+      expect(screen.getAllByText('large-doc.pdf').length).toBeGreaterThan(0);
+      expect(screen.getByRole('button', { name: /Compress PDF/ })).toBeInTheDocument();
     });
   });
 
@@ -192,7 +194,7 @@ describe('Compress Component', () => {
     fireEvent.click(screen.getByText('Remove'));
 
     await waitFor(() => {
-      expect(screen.getByText('Drop PDF here or click to select')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Add a PDF to compress' })).toBeInTheDocument();
     });
   });
 
@@ -205,7 +207,7 @@ describe('Compress Component', () => {
     fireEvent.change(input);
 
     // Should still show dropzone since PNG is rejected
-    expect(screen.getByText('Drop PDF here or click to select')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Add a PDF to compress' })).toBeInTheDocument();
   });
 });
 
@@ -220,23 +222,26 @@ describe('Convert Component', () => {
 
   it('should render the description text', () => {
     render(<Convert />);
-    expect(screen.getByText('Convert images to PDF, or extract pages from a PDF as images.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Transform PDFs into spreadsheets, Word docs, or images — and merge images into PDFs.')
+    ).toBeInTheDocument();
   });
 
   it('should show the upload dropzone', () => {
     render(<Convert />);
-    expect(screen.getByText('Drag & drop files or click to browse')).toBeInTheDocument();
-    expect(screen.getByText('Supports PDF, JPG, PNG')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Add files to convert' })).toBeInTheDocument();
+    expect(screen.getByText('📄 PDF')).toBeInTheDocument();
+    expect(screen.getByText('🖼️ PNG / JPG')).toBeInTheDocument();
   });
 
   it('should accept PDF, JPG, and PNG files', () => {
     const { container } = render(<Convert />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
-    expect(input?.accept).toBe('image/jpeg,image/png,application/pdf');
+    expect(input?.accept).toBe('image/jpeg,image/png,image/jpg,application/pdf');
     expect(input?.multiple).toBe(true);
   });
 
-  it('should show "Convert Images to PDF" button when images are uploaded', async () => {
+  it('should show the "Images to PDF" action when images are uploaded', async () => {
     const { container } = render(<Convert />);
     const file = new File(['image'], 'photo.jpg', { type: 'image/jpeg' });
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -245,11 +250,11 @@ describe('Convert Component', () => {
     fireEvent.change(input);
 
     await waitFor(() => {
-      expect(screen.getByText('Convert Images to PDF')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Images to PDF/ })).toBeInTheDocument();
     });
   });
 
-  it('should show "Convert PDF to Images" button when PDF is uploaded', async () => {
+  it('should show the "PDF to Images (ZIP)" action when PDF is uploaded', async () => {
     const { container } = render(<Convert />);
     const file = new File(['pdf'], 'doc.pdf', { type: 'application/pdf' });
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -258,7 +263,7 @@ describe('Convert Component', () => {
     fireEvent.change(input);
 
     await waitFor(() => {
-      expect(screen.getByText('Convert PDF to Images (ZIP)')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /PDF to Images \(ZIP\)/ })).toBeInTheDocument();
     });
   });
 
@@ -274,7 +279,7 @@ describe('Convert Component', () => {
     fireEvent.change(input);
 
     await waitFor(() => {
-      expect(screen.getByText('2 file(s) selected')).toBeInTheDocument();
+      expect(screen.getByText('2 files selected')).toBeInTheDocument();
     });
   });
 });
@@ -290,13 +295,16 @@ describe('Organize Component', () => {
 
   it('should render the description text', () => {
     render(<Organize />);
-    expect(screen.getByText(/Drag to reorder/)).toBeInTheDocument();
+    // /Drag to reorder/ also matches the panel hint, so match the description exactly.
+    expect(
+      screen.getByText('Drag to reorder, rotate, or remove pages — then save a new PDF.')
+    ).toBeInTheDocument();
   });
 
   it('should show the upload dropzone when no PDFs are loaded', () => {
     render(<Organize />);
-    expect(screen.getByText('Upload PDF files to organize pages')).toBeInTheDocument();
-    expect(screen.getByText('Drag and drop files here, or click to browse')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Add PDFs to organize' })).toBeInTheDocument();
+    expect(screen.getByText('📄 PDF')).toBeInTheDocument();
   });
 
   it('should accept only PDF files', () => {

@@ -125,7 +125,7 @@ export function Organize() {
             canvas.height = viewport.height;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-              await page.render({ canvasContext: ctx, viewport }).promise;
+              await page.render({ canvas, canvasContext: ctx, viewport }).promise;
               const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.7);
               newItems.push({
                 id: `${file.name}-${pageNum}-${Math.random().toString(36).substring(7)}`,

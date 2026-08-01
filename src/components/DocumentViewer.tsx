@@ -714,7 +714,7 @@ function PdfPage({
             'hover:ring-1 hover:ring-indigo-300/50'
           } ${!isEditing ? 'cursor-move' : ''}`}
           style={{ background: isSelected || isEditing ? 'rgba(255,255,255,0.15)' : 'transparent' }}
-          onMouseDown={(e: React.MouseEvent) => {
+          onMouseDown={() => {
             // Select on click (but don't interfere with toolbar interactions)
             if (!isEditing) {
               setSelectedTextId(text.id);
@@ -2194,7 +2194,7 @@ export function DocumentViewer({
                   'hover:ring-1 hover:ring-indigo-300/50'
                 } ${!isEditing ? 'cursor-move' : ''}`}
                 style={{ background: isSelected || isEditing ? 'rgba(255,255,255,0.15)' : 'transparent' }}
-                onMouseDown={(e: React.MouseEvent) => {
+                onMouseDown={() => {
                   if (!isEditing) {
                     setSelectedTextId(text.id);
                   }
