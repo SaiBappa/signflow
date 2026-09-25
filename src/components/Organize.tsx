@@ -3,7 +3,13 @@ import { PDFDocument, degrees } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+<<<<<<< HEAD
+=======
+import { LayoutGrid, Download } from 'lucide-react';
+>>>>>>> feat/prepare-form
 import { downloadBlob } from '../utils';
+import { ToolLayout, PrimaryButton } from './shared/ToolLayout';
+import { UploadDropzone } from './shared/UploadDropzone';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -33,11 +39,11 @@ function SortablePageItem({ item, onRemove, onPreview, onRotate }: { item: PdfPa
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative flex flex-col items-center bg-white border ${isDragging ? 'border-blue-500 shadow-xl scale-105' : 'border-slate-200 hover:border-blue-300'} rounded-lg transition-colors cursor-grab w-36 shrink-0 group`}
+      className={`relative flex flex-col items-center bg-white border ${isDragging ? 'border-indigo-500 shadow-xl scale-105' : 'border-slate-200 hover:border-indigo-300'} rounded-lg transition-colors cursor-grab touch-none select-none w-28 sm:w-36 shrink-0 group`}
       {...attributes}
       {...listeners}
     >
-      <div className="w-full h-44 p-2 bg-slate-50 flex items-center justify-center relative rounded-t-lg">
+      <div className="w-full h-36 sm:h-44 p-2 bg-slate-50 flex items-center justify-center relative rounded-t-lg">
         <img 
           src={item.thumbnailUrl} 
           className="max-w-full max-h-full object-contain pointer-events-none shadow-sm border border-slate-200 bg-white transition-transform duration-200" 
@@ -56,26 +62,26 @@ function SortablePageItem({ item, onRemove, onPreview, onRotate }: { item: PdfPa
       </div>
       
       {/* Action Buttons */}
-      <div className="absolute top-1 right-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-        <button 
+      <div className="absolute top-1 right-1 flex flex-col gap-1.5 md:gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-20">
+        <button
           onClick={(e) => { e.stopPropagation(); onRemove(item.id); }}
-          className="w-6 h-6 bg-white/90 backdrop-blur border border-slate-200 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors shadow-sm"
+          className="w-9 h-9 md:w-6 md:h-6 bg-white/90 backdrop-blur border border-slate-200 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors shadow-sm touch-auto"
           onPointerDown={(e) => e.stopPropagation()}
           title="Remove page"
         >
           ✕
         </button>
-        <button 
+        <button
           onClick={(e) => { e.stopPropagation(); onPreview(item); }}
-          className="w-6 h-6 bg-white/90 backdrop-blur border border-slate-200 rounded-full hover:bg-blue-50 text-slate-400 hover:text-blue-500 flex items-center justify-center transition-colors shadow-sm"
+          className="w-9 h-9 md:w-6 md:h-6 bg-white/90 backdrop-blur border border-slate-200 rounded-full hover:bg-indigo-50 text-slate-400 hover:text-indigo-500 flex items-center justify-center transition-colors shadow-sm touch-auto"
           onPointerDown={(e) => e.stopPropagation()}
           title="Preview page"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
-        <button 
+        <button
           onClick={(e) => { e.stopPropagation(); onRotate(item.id); }}
-          className="w-6 h-6 bg-white/90 backdrop-blur border border-slate-200 rounded-full hover:bg-green-50 text-slate-400 hover:text-green-600 flex items-center justify-center transition-colors shadow-sm"
+          className="w-9 h-9 md:w-6 md:h-6 bg-white/90 backdrop-blur border border-slate-200 rounded-full hover:bg-green-50 text-slate-400 hover:text-green-600 flex items-center justify-center transition-colors shadow-sm touch-auto"
           onPointerDown={(e) => e.stopPropagation()}
           title="Rotate page"
         >
@@ -92,7 +98,9 @@ export function Organize() {
   const [previewItem, setPreviewItem] = useState<PdfPageItem | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    // Require a small drag distance before activating so taps on the
+    // rotate/remove/preview buttons register on touch instead of starting a drag.
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -208,97 +216,102 @@ export function Organize() {
     }
   };
 
-  return (
-    <div className="flex-1 bg-slate-100 p-4 md:p-8 flex flex-col items-center overflow-y-auto">
-      <div className="max-w-5xl w-full">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-6 text-slate-800">
-          <div>
-            <h2 className="text-xl md:text-2xl font-bold mb-1">Organize PDF Pages</h2>
-            <p className="text-sm md:text-base text-slate-600">Drag to reorder. Click ✕ to remove unwanted pages. Merge into a new PDF.</p>
-          </div>
-          <div className="flex flex-wrap gap-2 md:gap-3">
-            {items.length > 0 && (
-               <button 
-                onClick={clearAll}
-                disabled={isProcessing}
-                className="px-3 md:px-4 py-1.5 md:py-2 bg-white text-slate-700 border border-slate-300 rounded-lg text-xs md:text-sm font-medium hover:bg-slate-50 transition disabled:opacity-50"
-              >
-                Clear All
-              </button>
-            )}
-            <div className="relative">
-              <input 
-                type="file" 
-                multiple 
-                accept="application/pdf"
-                onChange={handleUpload}
-                disabled={isProcessing}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
-                title="Add More PDFs"
-              />
-              <button 
-                disabled={isProcessing}
-                className="px-3 md:px-4 py-1.5 md:py-2 bg-slate-200 text-slate-700 rounded-lg text-xs md:text-sm font-medium hover:bg-slate-300 transition disabled:opacity-50 flex items-center gap-2 pointer-events-none"
-              >
-                <span>+ Add PDFs</span>
-              </button>
-            </div>
-            {items.length > 0 && (
-              <button 
-                onClick={handleMerge}
-                disabled={isProcessing}
-                className="px-4 md:px-6 py-1.5 md:py-2 bg-blue-600 text-white rounded-lg text-xs md:text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50 shadow-sm"
-              >
-                {isProcessing ? 'Processing...' : 'Save PDF'}
-              </button>
-            )}
-          </div>
-        </div>
+  const fileInputClass =
+    'absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed';
 
-        {items.length === 0 && !isProcessing && (
-          <div className="border-2 border-dashed border-slate-300 rounded-xl p-16 text-center flex flex-col items-center justify-center bg-white relative group hover:border-blue-400 transition-colors mb-6">
-            <input 
-              type="file" 
-              multiple 
-              accept="application/pdf"
-              onChange={handleUpload}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-3xl mb-4">
-              📑
-            </div>
-            <p className="font-semibold text-lg text-slate-700">Upload PDF files to organize pages</p>
-            <p className="text-slate-500 mt-2">Drag and drop files here, or click to browse</p>
-          </div>
-        )}
-
-        {isProcessing && items.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-            <p className="text-slate-600 font-medium">Extracting pages...</p>
-          </div>
-        )}
-
-        {items.length > 0 && (
-          <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-sm min-h-[400px]">
-             {isProcessing && (
-               <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl">
-                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-                 <p className="text-slate-800 font-medium bg-white px-4 py-2 rounded shadow">Processing documents...</p>
-               </div>
-             )}
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={items.map(i => i.id)} strategy={rectSortingStrategy}>
-                <div className="flex flex-wrap gap-4 items-start">
-                  {items.map(item => (
-                    <SortablePageItem key={item.id} item={item} onRemove={removeItem} onPreview={setPreviewItem} onRotate={rotateItem} />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          </div>
-        )}
+  const panel = (
+    <>
+      <div className="relative">
+        <input
+          type="file"
+          multiple
+          accept="application/pdf"
+          onChange={handleUpload}
+          disabled={isProcessing}
+          className={fileInputClass}
+          title="Add More PDFs"
+        />
+        <button
+          disabled={isProcessing}
+          className="w-full px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition disabled:opacity-50 flex items-center justify-center gap-2 pointer-events-none"
+        >
+          <span className="text-base leading-none">+</span> Add PDFs
+        </button>
       </div>
+
+      {items.length > 0 && (
+        <button
+          onClick={clearAll}
+          disabled={isProcessing}
+          className="w-full px-4 py-2.5 bg-white text-slate-700 border border-slate-300 rounded-xl text-sm font-bold hover:bg-slate-50 transition disabled:opacity-50"
+        >
+          Clear All
+        </button>
+      )}
+
+      <p className="text-xs text-slate-400 font-medium leading-relaxed">
+        Drag to reorder • hover a page to rotate/remove
+      </p>
+
+      {items.length > 0 && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-600">
+          {items.length} {items.length === 1 ? 'page' : 'pages'}
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <ToolLayout
+      icon={<LayoutGrid size={20} strokeWidth={2} />}
+      title="Organize PDF Pages"
+      description="Drag to reorder, rotate, or remove pages — then save a new PDF."
+      accentClass="from-violet-500 to-purple-500"
+      panel={panel}
+      panelFooter={
+        <PrimaryButton onClick={handleMerge} disabled={items.length === 0} loading={isProcessing} loadingText="Saving…">
+          <Download size={16} /> Save PDF
+        </PrimaryButton>
+      }
+    >
+      {items.length === 0 && !isProcessing ? (
+        <UploadDropzone
+          multiple
+          onFiles={fs => {
+            const dt = new DataTransfer();
+            fs.filter(f => f.type === 'application/pdf').forEach(f => dt.items.add(f));
+            handleUpload({ target: { files: dt.files } } as React.ChangeEvent<HTMLInputElement>);
+          }}
+          accept="application/pdf"
+          title="Add PDFs to organize"
+          subtitle="Drag & drop PDFs here, or browse. Pages appear as a reorderable grid."
+          chips={['📄 PDF']}
+          icon={<LayoutGrid className="w-9 h-9" strokeWidth={2} />}
+        />
+      ) : isProcessing && items.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-slate-600 font-medium">Extracting pages…</p>
+        </div>
+      ) : (
+        <div className="relative flex-1 p-4 md:p-6 overflow-y-auto">
+          {isProcessing && (
+            <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+              <p className="text-slate-800 font-medium bg-white px-4 py-2 rounded shadow">Processing documents…</p>
+            </div>
+          )}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map(i => i.id)} strategy={rectSortingStrategy}>
+              <div className="flex flex-wrap gap-4 items-start">
+                {items.map(item => (
+                  <SortablePageItem key={item.id} item={item} onRemove={removeItem} onPreview={setPreviewItem} onRotate={rotateItem} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+      )}
 
       {/* Preview Modal */}
       {previewItem && (
@@ -329,7 +342,7 @@ export function Organize() {
           </div>
         </div>
       )}
-    </div>
+    </ToolLayout>
   );
 }
 

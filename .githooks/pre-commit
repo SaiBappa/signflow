@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Project pre-commit hook. Enabled via `core.hooksPath=.githooks`
+# (set automatically by `npm install`'s prepare script).
+exec "$(git rev-parse --show-toplevel)/scripts/check-secrets.sh"

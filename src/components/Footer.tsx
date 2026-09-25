@@ -10,7 +10,7 @@ const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' 
   </svg>
 );
 
-const Footer: React.FC = () => (
+const Footer: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
   <footer
     className="hidden md:flex pt-3 pb-3 text-slate-400 text-sm border-t border-slate-200 bg-white shrink-0 flex-wrap items-center justify-center gap-4"
     style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
@@ -25,6 +25,7 @@ const Footer: React.FC = () => (
       <WhatsAppIcon className="w-3.5 h-3.5" />
       Chat with us
     </a>
+    {children}
   </footer>
 );
 

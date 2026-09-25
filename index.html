@@ -7,11 +7,43 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#6366f1" />
+    <!-- Professional type system: Inter for UI, Sora for display headings. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Sora:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <title>SignFlow Studio</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script type="module">
+      // Only register the service worker in production builds. In dev, a
+      // cache-first SW freezes Vite's module chunks and breaks HMR, so we
+      // actively unregister any SW left over from a previous prod/dev session.
+      if ('serviceWorker' in navigator) {
+        if (import.meta.env.PROD) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then((registration) => {
+              console.log('SW registered:', registration.scope);
+            }).catch((error) => {
+              console.log('SW registration failed:', error);
+            });
+          });
+        } else {
+          navigator.serviceWorker.getRegistrations().then((regs) => {
+            regs.forEach((r) => r.unregister());
+          });
+          if (window.caches) {
+            caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+          }
+        }
+      }
+    </script>
   </body>
 </html>
 
